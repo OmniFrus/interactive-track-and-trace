@@ -39,7 +39,7 @@ vector<string> findBadgesInDir(const string &path) {
     if (fs::exists(path) && fs::is_directory(path)) {
       for (const auto &entry: fs::directory_iterator(path)) {
         if (entry.is_regular_file() && entry.path().extension() == ".png") {
-          string filename = entry.path().filename();
+          string filename = entry.path().filename().string();
           string noQuotesFilename = removeQuotes(filename);
           names.push_back(noQuotesFilename);
         }
@@ -61,7 +61,7 @@ vector<string> getDirectoryNames(string path) {
     if (fs::exists(path) && fs::is_directory(path)) {
       for (const auto &entry: fs::directory_iterator(path)) {
         if (entry.is_directory()) {
-          names.push_back(entry.path().filename());
+          names.push_back(entry.path().filename().string());
         }
       }
     } else {

@@ -19,7 +19,8 @@ vtkSmartPointer<vtkActor> StaticBadge::getActor() {
   return texturedPlane;
 }
 
-StaticBadge::StaticBadge(const std::string &datapath, std::string name, double size) {
+StaticBadge::StaticBadge(const std::string &datapath, std::string name, double size)
+  : buffer(), sound(buffer) {
 
   position->InsertPoint(0, 0, initY, 0);
 
