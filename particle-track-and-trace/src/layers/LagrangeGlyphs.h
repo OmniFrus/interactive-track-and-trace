@@ -8,6 +8,7 @@
 #include <vtkPolyData.h>
 #include <vtkInteractorStyle.h>
 #include <vtkGlyphSource2D.h>
+#include <string>
 
 /**
  * Implements the Layer class for the case of a Lagrangian visualization.
@@ -20,9 +21,9 @@ public:
    * Constructor.
    * @param uvGrid UVGrid used for boundary conditions calculations
    * @param advectionKernel advects particles using given kernel
+   * @param spawnFile Path to CSV file containing spawn locations
    */
-  LagrangeGlyphs(std::shared_ptr<UVGrid> uvGrid, std::unique_ptr<AdvectionKernel> advectionKernel);
-
+  LagrangeGlyphs(std::shared_ptr<UVGrid> uvGrid, std::unique_ptr<AdvectionKernel> advectionKernel, const std::string& spawnFile);
   /**
    * This function spoofs a few points in the dataset. Mostly used for testing.
    */
@@ -45,8 +46,8 @@ public:
   void setToDiamond();
 
   void handleGameOver() override;
+
 private:
-//  vtkSmartPointer<vtkPoints> points;
   vtkNew<vtkPoints> points;
   vtkSmartPointer<vtkPolyData> data;
   vtkSmartPointer<vtkIntArray> particlesBeached;
@@ -56,6 +57,12 @@ private:
   vtkNew<vtkGlyphSource2D> circleSource;
   int lastT = 1000;
   int beachedAtNumberOfTimes = 50;
+
+  /**
+   * Load spawn locations from CSV file and create particles
+   * @param filename Path to the CSV file containing lat,lon coordinates
+   */
+  void spawnParticlesFromFile(const std::string& filename);
 
   vtkSmartPointer<SpawnPointCallback> createSpawnPointCallback();
 };

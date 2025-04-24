@@ -68,7 +68,7 @@ bool isNearestNeighbourZero(const UVGrid &uvGrid, int time, double lat, double l
                         latIndex + 1 < uvGrid.latSize ? latIndex + latOffset : latIndex,
                         lonIndex + 1 < uvGrid.lonSize ? lonIndex + lonOffset : lonIndex
         ];
-        if (abs(u) < eps and abs(v) < eps ) {
+        if (abs(u) < eps && abs(v) < eps ) {
           counter++;
         }
 

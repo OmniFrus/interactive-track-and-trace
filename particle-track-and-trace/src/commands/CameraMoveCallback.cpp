@@ -16,19 +16,19 @@ void CameraMoveCallback::Execute(vtkObject *caller, unsigned long evId,
 
   switch (evId) {
     case vtkCommand::KeyPressEvent:
-      if (not strcmp("minus", intr->GetKeySym())) {
+      if (strcmp("minus", intr->GetKeySym()) == 0) {
         zoom(false);
-      } else if (not strcmp("equal", intr->GetKeySym())) {
+      } else if (strcmp("equal", intr->GetKeySym()) == 0) {
         zoom(true);
       } else {
         pan(intr->GetKeySym());
       }
       break;
     case vtkCommand::MouseWheelForwardEvent:
-      zoom(true);
+      //zoom(true);
       break;
     case vtkCommand::MouseWheelBackwardEvent:
-      zoom(false);
+      //zoom(false);
       break;
     default:
       break;
@@ -75,21 +75,20 @@ void CameraMoveCallback::zoom(const bool in) {
 
 // we use the interactor's getKeySym instead of getKeyCode because getKeyCode is platform-dependent.
 void CameraMoveCallback::pan(const string dir) {
-//  double pos[3];
-//  this->cam->GetPosition(pos);
-//
-//  if (dir == "Left" or dir == "h") {
-//    pos[0] -= 0.1;
-//  } else if (dir == "Up" or dir == "k" ) {
-//    pos[1] += 0.1;
-//  } else if (dir == "Right" or dir == "l" ) {
-//    pos[0] += 0.1;
-//  } else if (dir == "Down" or dir == "j" ) {
-//    pos[1] -= 0.1;
-//  }
-//
-//  clampCamera(pos);
-  clampCamera(this->cam->GetPosition());
+  double pos[3];
+  this->cam->GetPosition(pos);
+
+  if (dir == "Left" || dir == "h") {
+    pos[0] -= 0.1;
+  } else if (dir == "Up" || dir == "k") {
+    pos[1] += 0.1;
+  } else if (dir == "Right" || dir == "l") {
+    pos[0] += 0.1;
+  } else if (dir == "Down" || dir == "j") {
+    pos[1] -= 0.1;
+  }
+
+  clampCamera(pos);
 }
 
 CameraMoveCallback::CameraMoveCallback() : cam(nullptr) {}

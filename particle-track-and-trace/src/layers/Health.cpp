@@ -112,7 +112,7 @@ void Health::updateData(int t) {
 }
 
 void Health::changeHealth(double healthChange) {
-  if (healthChange < 0 and graceProgress > 0) {
+  if (healthChange < 0 && graceProgress > 0) {
     return;
   }
 

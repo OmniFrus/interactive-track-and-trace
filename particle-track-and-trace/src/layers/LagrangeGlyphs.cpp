@@ -16,6 +16,9 @@
 #include <vtkPolyDataMapper.h>
 #include <vtkRenderWindow.h>
 #include <vtkCamera.h>
+#include <fstream>
+#include <sstream>
+#include <iostream>
 
 #include "../CartographicTransformation.h"
 #include "../advection/interpolate.h"
@@ -30,7 +33,7 @@ vtkSmartPointer<SpawnPointCallback> LagrangeGlyphs::createSpawnPointCallback() {
   return newPointCallBack;
 }
 
-LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<AdvectionKernel> advectionKernel) :
+LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<AdvectionKernel> advectionKernel, const std::string& spawnFile) :
         uvGrid{std::move(grid)}, advector{std::move(advectionKernel)} {
   this->data = vtkSmartPointer<vtkPolyData>::New();
   this->data->SetPoints(this->points);
@@ -38,9 +41,6 @@ LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<Adv
   this->particlesBeached = vtkSmartPointer<vtkIntArray>::New();
   this->particlesBeached->SetName("particlesBeached");
   this->particlesBeached->SetNumberOfComponents(0);
-
-//  this->data->GetPointData()->AddArray(this->particlesBeached);
-//  this->data->GetPointData()->SetActiveScalars("particlesBeached");
 
   vtkSmartPointer<vtkTransformFilter> transformFilter = createCartographicTransformFilter(*uvGrid);
   transformFilter->SetInputData(data);
@@ -62,20 +62,50 @@ LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<Adv
   mapper->Update();
 
   actor->SetMapper(mapper);
-
   this->renderer->AddActor(actor);
+
+  // Load and spawn particles from CSV file
+  spawnParticlesFromFile(spawnFile);
 }
 
-// creates a few points so we can test the updateData function
-void LagrangeGlyphs::spoofPoints() {
-  for (int i = 0; i < 330; i += 5) {
-    for (int j = 0; j < 330; j += 5) {
-      this->points->InsertNextPoint(-15.875 + (12.875 + 15.875) / 330 * j, 46.125 + (62.625 - 46.125) / 330 * i, 0);
-      this->particlesBeached->InsertNextValue(0);
+void LagrangeGlyphs::spawnParticlesFromFile(const std::string& filename) {
+  std::ifstream file(filename);
+  if (!file.is_open()) {
+    std::cerr << "Error: Could not open spawn locations file: " << filename << std::endl;
+    return;
+  }
+
+  std::string line;
+  // Skip header line if it exists
+  std::getline(file, line);
+
+  while (std::getline(file, line)) {
+    std::stringstream ss(line);
+    std::string lat_str, lon_str;
+    
+    if (std::getline(ss, lat_str, ',') && std::getline(ss, lon_str, ',')) {
+      try {
+        double lat = std::stod(lat_str);
+        double lon = std::stod(lon_str);
+        
+        // Only spawn if within grid boundaries
+        if (lon >= uvGrid->lonMin() && lon <= uvGrid->lonMax() &&
+            lat >= uvGrid->latMin() && lat <= uvGrid->latMax()) {
+          this->points->InsertNextPoint(lon, lat, 0);
+          this->particlesBeached->InsertNextValue(0);
+        }
+      } catch (const std::exception& e) {
+        std::cerr << "Error parsing line: " << line << std::endl;
+        continue;
+      }
     }
   }
 
-  this->points->Modified();
+  if (this->points->GetNumberOfPoints() > 0) {
+    this->points->Modified();
+    this->particlesBeached->Modified();
+    std::cout << "Spawned " << this->points->GetNumberOfPoints() << " particles from file." << std::endl;
+  }
 }
 
 void LagrangeGlyphs::updateData(int t) {

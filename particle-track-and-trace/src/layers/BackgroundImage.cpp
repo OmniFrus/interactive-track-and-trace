@@ -33,6 +33,8 @@ vtkSmartPointer<vtkMatrix4x4> BackgroundImage::getMatrix(const double x0, const 
 
 
 void BackgroundImage::updateImage() {
+  // Remove all old actors from the renderer (prevents duplication)
+  this->renderer->RemoveAllViewProps();
 
   // read image data
   vtkSmartPointer<vtkImageReader2> imageReader;
@@ -58,7 +60,7 @@ void BackgroundImage::updateImage() {
   imageDataGeometryFilter->SetInputData(imageData);
   imageDataGeometryFilter->Update();
 
-//   setup the vtkTransform - this is where use the data from imageData we got earlier
+  // setup the vtkTransform
   vtkNew<vtkTransform> transform;
   transform->SetMatrix(getMatrix(origin[0], origin[1], extent[1]+origin[0], extent[3]+origin[1]));
   vtkNew<vtkTransformFilter> transformFilter;
@@ -72,7 +74,8 @@ void BackgroundImage::updateImage() {
 
   vtkNew<vtkActor> actor;
   actor->SetMapper(mapper);
-    
+  actor->PickableOff();  // optional: make sure it doesn't interfere with picking
+
   this->renderer->AddActor(actor);
 }
 
@@ -85,4 +88,3 @@ void BackgroundImage::setImagePath(string imagePath) {
   this->imagePath = imagePath;
   updateImage();
 }
-
