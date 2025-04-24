@@ -37,8 +37,10 @@ constexpr int dt = 60 * 60; // 60 sec/min * 60 mins
 
 int main() {
   cout << "Reading data..." << endl;
-  string dataPath = "../../../../data";
+  string dataPath = "../../../../../data";
+  cout << "Creating UVGrid..." << endl;
   shared_ptr<UVGrid> uvGrid = make_shared<UVGrid>(dataPath);
+  cout << "Created UVGrid." << endl;
   auto kernelRK4 = make_unique<RK4AdvectionKernel>(uvGrid);
   auto kernelRK4BoundaryChecked = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   auto kernelRK4Food = make_unique<RK4AdvectionKernel>(uvGrid);
@@ -106,7 +108,7 @@ int main() {
   program->addLayer(character);
   program->addLayer(health);
   program->addLayer(camera);
-  program->addLayer(make_unique<SplashScreen>(dataPath));
+  //program->addLayer(make_unique<SplashScreen>(dataPath));
   program->addLayer(gameover);
   program->addLayer(dayCounter);
   program->addLayer(std::move(statisticsManager));

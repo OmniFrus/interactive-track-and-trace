@@ -24,17 +24,22 @@ vector<T> getVarVector(const NcVar &var) {
 vector<double> readHydrodynamicU(string path) {
   // Vs and Us flipped cause the files are named incorrectly
   string fileName = "hydrodynamic_V.h5";
-
+  cout << "Opening " << path + '/' + fileName << endl;
   netCDF::NcFile data(path + '/' + fileName, netCDF::NcFile::read);
 
   multimap<string, NcVar> vars = data.getVars();
 
-  return getVarVector<double>(vars.find("vo")->second);
+  auto it = vars.find("vo");
+  if (it == vars.end()) {
+      throw std::runtime_error("'vo' not found in hydrodynamic_U.h5");
+  }
+  return getVarVector<double>(it->second);
 }
 
 vector<double> readHydrodynamicV(string path) {
   // Vs and Us flipped cause the files are named incorrectly
   string fileName = "hydrodynamic_U.h5";
+  cout << "Opening " << path + '/' + fileName << endl;
   netCDF::NcFile data(path + '/' + fileName, netCDF::NcFile::read);
 
   multimap<string, NcVar> vars = data.getVars();

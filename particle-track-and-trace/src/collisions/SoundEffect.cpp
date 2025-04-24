@@ -1,4 +1,5 @@
 #include "SoundEffect.h"
+#include <iostream>
 
 using namespace std;
 
@@ -6,7 +7,7 @@ SoundEffect::SoundEffect(std::string datapath, const std::shared_ptr<ParticleCol
     : buffer(), sound(buffer), callback(callback) {
     
     if (!buffer.loadFromFile(datapath)) {
-        throw std::runtime_error("File at \"" + datapath + "\" not found.");
+        cerr << "Warning: Sound file not found at \"" << datapath << "\". Sound disabled." << endl;
     }
 
     sound.setVolume(50);

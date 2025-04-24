@@ -7,13 +7,17 @@
 using namespace std;
 
 UVGrid::UVGrid(string path) {
+  cout << "Reading hydrodynamic_U..." << endl;
   auto us = readHydrodynamicU(path);
+  cout << "Reading hydrodynamic_V..." << endl;
   auto vs = readHydrodynamicV(path);
+  cout << "Reading grid..." << endl;
   if (us.size() != vs.size()) {
     throw domain_error(sizeError2);
   }
 
   tie(times, lats, lons) = readGrid(path);
+  cout << "Finished reading all files." << endl;
 
   timeSize = times.size();
   latSize = lats.size();

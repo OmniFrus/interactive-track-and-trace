@@ -31,11 +31,18 @@ interactive-track-and-trace/
 You will need [vtk](https://gitlab.kitware.com/vtk/vtk), [netcdf-cxx](https://github.com/Unidata/netcdf-cxx4/),
 [SFML](https://github.com/SFML/SFML).
 
+I downloaded everything using vcpkg.
+./vcpkg install vtk
+./vcpkg install netcdf
+./vcpkg install sfml
+
 Let the current directory be the `src` directory. Run:
 ```shell
-mkdir build
-cd build
-cmake ..
-make
+cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/vcpkg/scripts/buildsystems/vcpkg.cmake"
+cmake --build build --config Release
 ```
+Then run C:\Users\wesle\Documents\Universiteit\2024_2025\Thesis\Opdracht\interactive-track-and-trace\particle-track-and-trace\src\build\Release\ParticleTrackTrace.exe
+
+
+(install PROJ.db -> https://download.osgeo.org/osgeo4w/)
 
