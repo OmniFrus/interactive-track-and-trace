@@ -22,6 +22,9 @@
 
 #include "../CartographicTransformation.h"
 #include "../advection/interpolate.h"
+#include "../advection/kernel/SnapBoundaryConditionKernel.h"
+#include "../advection/kernel/FreeSlipBoundaryConditionKernel.h"
+#include "../advection/kernel/PartialSlipBoundaryConditionKernel.h"
 
 vtkSmartPointer<SpawnPointCallback> LagrangeGlyphs::createSpawnPointCallback() {
   auto newPointCallBack = vtkSmartPointer<SpawnPointCallback>::New();
@@ -35,18 +38,31 @@ vtkSmartPointer<SpawnPointCallback> LagrangeGlyphs::createSpawnPointCallback() {
 
 LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<AdvectionKernel> advectionKernel, const std::string& spawnFile) :
         uvGrid{std::move(grid)}, advector{std::move(advectionKernel)} {
+
+  //Which advection are we using.
+  if (dynamic_cast<SnapBoundaryConditionKernel*>(advector.get())) {
+      this->boundaryType = BoundaryType::Snap;
+  } else if (dynamic_cast<FreeSlipBoundaryConditionKernel*>(advector.get())) {
+      this->boundaryType = BoundaryType::FreeSlip;
+  } else if (dynamic_cast<PartialSlipBoundaryConditionKernel*>(advector.get())) {
+      this->boundaryType = BoundaryType::PartialSlip;
+  } else {
+      throw std::runtime_error("Unknown boundary kernel type");
+  }
+
   this->data = vtkSmartPointer<vtkPolyData>::New();
   this->data->SetPoints(this->points);
 
   this->particlesBeached = vtkSmartPointer<vtkIntArray>::New();
   this->particlesBeached->SetName("particlesBeached");
-  this->particlesBeached->SetNumberOfComponents(0);
+  this->particlesBeached->SetNumberOfComponents(1);
+  this->data->GetPointData()->SetScalars(this->particlesBeached);
 
   vtkSmartPointer<vtkTransformFilter> transformFilter = createCartographicTransformFilter(*uvGrid);
   transformFilter->SetInputData(data);
 
   circleSource->SetGlyphTypeToCircle();
-  circleSource->SetScale(0.02);
+  circleSource->SetScale(0.01);
   circleSource->Update();
 
   vtkNew<vtkGlyph2D> glyph2D;
@@ -55,10 +71,17 @@ LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<Adv
   glyph2D->SetScaleModeToDataScalingOff();
   glyph2D->Update();
 
+  // Create lookup table for coloring particles
+  vtkNew<vtkLookupTable> lut;
+  lut->SetNumberOfTableValues(2);  // Two states: not beached and beached
+  lut->SetTableValue(0, 0.0, 0.0, 1.0);  // Blue for not beached
+  lut->SetTableValue(1, 1.0, 0.0, 0.0);  // Red for beached
+  lut->Build();
+
   vtkNew<vtkPolyDataMapper> mapper;
   mapper->SetInputConnection(glyph2D->GetOutputPort());
-//  mapper->SetLookupTable(buildLut(this->beachedAtNumberOfTimes));
-//  mapper->SetScalarRange(0, this->beachedAtNumberOfTimes);
+  mapper->SetLookupTable(lut);
+  mapper->SetScalarRange(0, 1);
   mapper->Update();
 
   actor->SetMapper(mapper);
@@ -144,13 +167,27 @@ void LagrangeGlyphs::updateData(int t) {
       }
 
       // if the particle's location remains unchanged, increase beachedFor number. Else, decrease it and update point position.
-//      if (abs(oldX - point[0]) < EPS and abs(oldY-point[1]) < EPS) {
-      if (isNearestNeighbourZero(*uvGrid, t, point[1], point[0])) {
-        this->particlesBeached->SetValue(n, beachedFor + 1);
+      //if (abs(oldX - point[0]) < EPS and abs(oldY-point[1]) < EPS) {
+
+      bool useVelocityBeaching = (this->boundaryType == BoundaryType::Snap);
+      if (useVelocityBeaching) {
+          if (isNearestNeighbourZero(*uvGrid, t, point[1], point[0])) {
+              this->particlesBeached->SetValue(n, beachedFor + 1);
+          } else {
+              this->particlesBeached->SetValue(n, std::max(beachedFor - 1, 0));
+              this->points->SetPoint(n, point);
+              modifiedData = true;
+          }
       } else {
-        this->particlesBeached->SetValue(n, std::max(beachedFor - 1, 0));
-        this->points->SetPoint(n, point);
-        modifiedData = true;
+          // In FreeSlip or PartialSlip: only beach if outside grid
+          if (point[0] <= uvGrid->lonMin() || point[0] >= uvGrid->lonMax() ||
+              point[1] <= uvGrid->latMin() || point[1] >= uvGrid->latMax()) {
+              this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
+          } else {
+              this->particlesBeached->SetValue(n, 0);
+              this->points->SetPoint(n, point);
+              modifiedData = true;
+            }
       }
     }
   }
@@ -159,10 +196,10 @@ void LagrangeGlyphs::updateData(int t) {
 }
 
 void LagrangeGlyphs::addObservers(vtkSmartPointer<vtkRenderWindowInteractor> interactor) {
-//  auto newPointCallBack = createSpawnPointCallback();
-//  interactor->AddObserver(vtkCommand::LeftButtonPressEvent, newPointCallBack);
-//  interactor->AddObserver(vtkCommand::LeftButtonReleaseEvent, newPointCallBack);
-//  interactor->AddObserver(vtkCommand::MouseMoveEvent, newPointCallBack);
+  auto newPointCallBack = createSpawnPointCallback();
+  interactor->AddObserver(vtkCommand::LeftButtonPressEvent, newPointCallBack);
+  interactor->AddObserver(vtkCommand::LeftButtonReleaseEvent, newPointCallBack);
+  interactor->AddObserver(vtkCommand::MouseMoveEvent, newPointCallBack);
 }
 
 vtkSmartPointer<vtkPoints> LagrangeGlyphs::getPoints() {

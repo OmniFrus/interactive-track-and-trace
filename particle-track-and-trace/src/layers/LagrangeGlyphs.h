@@ -65,6 +65,14 @@ private:
   void spawnParticlesFromFile(const std::string& filename);
 
   vtkSmartPointer<SpawnPointCallback> createSpawnPointCallback();
+
+  enum class BoundaryType {
+      Snap,
+      FreeSlip,
+      PartialSlip
+  };
+  
+  BoundaryType boundaryType;
 };
 
 #endif

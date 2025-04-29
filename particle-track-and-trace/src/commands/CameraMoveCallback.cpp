@@ -25,10 +25,10 @@ void CameraMoveCallback::Execute(vtkObject *caller, unsigned long evId,
       }
       break;
     case vtkCommand::MouseWheelForwardEvent:
-      //zoom(true);
+      zoom(true);
       break;
     case vtkCommand::MouseWheelBackwardEvent:
-      //zoom(false);
+      zoom(false);
       break;
     default:
       break;
@@ -78,13 +78,13 @@ void CameraMoveCallback::pan(const string dir) {
   double pos[3];
   this->cam->GetPosition(pos);
 
-  if (dir == "Left" || dir == "h") {
+  if (dir == "Left" || dir == "a") {
     pos[0] -= 0.1;
-  } else if (dir == "Up" || dir == "k") {
+  } else if (dir == "Up" || dir == "w") {
     pos[1] += 0.1;
-  } else if (dir == "Right" || dir == "l") {
+  } else if (dir == "Right" || dir == "d") {
     pos[0] += 0.1;
-  } else if (dir == "Down" || dir == "j") {
+  } else if (dir == "Down" || dir == "s") {
     pos[1] -= 0.1;
   }
 

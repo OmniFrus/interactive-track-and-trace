@@ -8,6 +8,9 @@
 #include "advection/UVGrid.h"
 #include "advection/kernel/RK4AdvectionKernel.h"
 #include "advection/kernel/SnapBoundaryConditionKernel.h"
+#include "advection/kernel/FreeSlipBoundaryConditionKernel.h"
+#include "advection/kernel/PartialSlipBoundaryConditionKernel.h"
+#include "advection/kernel/SnapBoundaryConditionKernel.h"
 
 #include <vtkPolyDataMapper2D.h>
 #include <vtkProperty2D.h>
@@ -23,8 +26,17 @@ int main() {
   cout << "Creating UVGrid..." << endl;
   shared_ptr<UVGrid> uvGrid = make_shared<UVGrid>(dataPath);
   cout << "Created UVGrid." << endl;
+  
   auto kernelRK4 = make_unique<RK4AdvectionKernel>(uvGrid);
-  auto kernelRK4BoundaryChecked = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  unique_ptr<AdvectionKernel> boundaryKernel;
+
+    // Choose boundary handling here:
+    // For Snap:
+    // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+    // Or for Partial Slip:
+    // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+    // Or for Free Slip:
+     boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
 
   cout << "Starting vtk..." << endl;
   auto program = make_shared<Program>(dt);
@@ -32,8 +44,7 @@ int main() {
   auto camera = make_shared<Camera>();
 
   // Create and configure litter particles with spawn locations from CSV
-  auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(kernelRK4BoundaryChecked), dataPath + "/spawn_locations.csv");
-  litter->setColour(255, 255, 255);
+  auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(boundaryKernel), dataPath + "/spawn_locations.csv");
   litter->setToDiamond();
 
   // Create Euler glyphs for flow visualization

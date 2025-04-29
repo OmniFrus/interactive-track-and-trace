@@ -17,15 +17,16 @@ data/
   grid.h5
   hydrodynamic_U.h5
   hydrodynamic_V.h5
-  bird.png
-  gameover.png
   map_2071-2067.png
-  vessel.png
+  spawn_locations.csv
   
 interactive-track-and-trace/
   particle-track-and-trace/
      ...
 ```
+The csv file you find in the data folder are the spawn locations of all the litter particles for this simulation. They will always spawn in the same location to avoid different test results based on spawn location.
+You can also spawn particles by left mouse clicking inside the simulation.
+Particles are colored Red if they are considered beached and Blue if they are not.
 
 ## Compiling
 You will need [vtk](https://gitlab.kitware.com/vtk/vtk), [netcdf-cxx](https://github.com/Unidata/netcdf-cxx4/),
@@ -35,6 +36,7 @@ I downloaded everything using vcpkg.
 ./vcpkg install vtk
 ./vcpkg install netcdf
 ./vcpkg install sfml
+install PROJ.db -> https://download.osgeo.org/osgeo4w/
 
 Let the current directory be the `src` directory. Run:
 ```shell
@@ -42,7 +44,4 @@ cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="C:/Users/wesle/Documents/Universitei
 cmake --build build --config Release
 ```
 Then run C:\Users\wesle\Documents\Universiteit\2024_2025\Thesis\Opdracht\interactive-track-and-trace\particle-track-and-trace\src\build\Release\ParticleTrackTrace.exe
-
-
-(install PROJ.db -> https://download.osgeo.org/osgeo4w/)
 
