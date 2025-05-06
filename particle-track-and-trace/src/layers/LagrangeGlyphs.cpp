@@ -200,6 +200,7 @@ void LagrangeGlyphs::addObservers(vtkSmartPointer<vtkRenderWindowInteractor> int
   interactor->AddObserver(vtkCommand::LeftButtonPressEvent, newPointCallBack);
   interactor->AddObserver(vtkCommand::LeftButtonReleaseEvent, newPointCallBack);
   interactor->AddObserver(vtkCommand::MouseMoveEvent, newPointCallBack);
+  interactor->AddObserver(vtkCommand::RightButtonPressEvent, newPointCallBack);
 }
 
 vtkSmartPointer<vtkPoints> LagrangeGlyphs::getPoints() {
