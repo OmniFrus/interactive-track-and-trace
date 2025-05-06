@@ -43,5 +43,5 @@ Let the current directory be the `src` directory. Run:
 cmake -B build -S . -DCMAKE_TOOLCHAIN_FILE="C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/vcpkg/scripts/buildsystems/vcpkg.cmake"
 cmake --build build --config Release
 ```
-Then run C:\Users\wesle\Documents\Universiteit\2024_2025\Thesis\Opdracht\interactive-track-and-trace\particle-track-and-trace\src\build\Release\ParticleTrackTrace.exe
+Then run C:\Users\wesle\Documents\Universiteit\2024_2025\Thesis\Opdracht\interactive-track-and-trace\particle-track-and-trace\src\build\Release\ParticleTrackTrace.exe from the file explorer.
 

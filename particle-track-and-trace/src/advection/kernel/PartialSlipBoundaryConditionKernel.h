@@ -14,6 +14,7 @@ public:
 private:
     std::unique_ptr<AdvectionKernel> baseKernel;
     std::shared_ptr<UVGrid> grid;
+    double slipFactor; // Factor controlling the amount of slip (0 = no slip, 1 = free slip)
 };
 
 #endif
