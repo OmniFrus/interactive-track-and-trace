@@ -12,13 +12,19 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
     // First check if the next position would be on land
     auto [newLat, newLon] = baseKernel->advect(time, latitude, longitude, dt);
     const double epsilon = 1e-5; // About ~1 meter inward (in degrees)
+    const double shoreThreshold = 1000.0; // 1km threshold for near-shore behavior
 
     // Get velocity at current position using bilinear interpolation
     auto vel = bilinearinterpolate(*grid, time, latitude, longitude);
     bool needsReflection = false;
 
-    // Check if the next position would be on land or near coast
-    if (isNearestNeighbourZero(*grid, time, newLat, newLon)) {
+    // Find grid indices for current position
+    size_t latIndex = static_cast<size_t>((latitude - grid->latMin()) / grid->latStep());
+    size_t lonIndex = static_cast<size_t>((longitude - grid->lonMin()) / grid->lonStep());
+
+    // Check if we're near shore or if next position would be on land
+    if (grid->isNearShore(latIndex, lonIndex, shoreThreshold) || 
+        isNearestNeighbourZero(*grid, time, newLat, newLon)) {
         needsReflection = true;
 
         // Calculate normalized coordinates within cell (xi and eta)
@@ -28,6 +34,13 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
         eta = eta - std::floor(eta);  // Normalize to [0,1]
 
         const double min_coord = 0.01; // Prevent division by zero
+
+        // Get distance to shore at current position
+        double distToShore = grid->getShoreDistance(latIndex, lonIndex);
+        
+        // Scale slip factor based on distance to shore
+        const double minSlip = 0.1; // or another small value
+        double slipFactor = std::max(minSlip, std::min(1.0, distToShore / shoreThreshold));
 
         // Determine which boundary we're closest to and apply appropriate slip
         double distToWest = std::abs(newLon - grid->lonMin());
@@ -39,19 +52,19 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
         if (distToWest <= distToEast && distToWest <= distToSouth && distToWest <= distToNorth) {
             // Western boundary - slip northward/southward
             vel.u = 0;  // Zero normal velocity
-            vel.v *= 1.0 / std::max(eta, min_coord);
+            vel.v *= slipFactor / std::max(eta, min_coord);
         } else if (distToEast <= distToSouth && distToEast <= distToNorth) {
             // Eastern boundary - slip northward/southward
             vel.u = 0;  // Zero normal velocity
-            vel.v *= 1.0 / std::max(1.0 - eta, min_coord);
+            vel.v *= slipFactor / std::max(1.0 - eta, min_coord);
         } else if (distToSouth <= distToNorth) {
             // Southern boundary - slip eastward/westward
             vel.v = 0;  // Zero normal velocity
-            vel.u *= 1.0 / std::max(xi, min_coord);
+            vel.u *= slipFactor / std::max(xi, min_coord);
         } else {
             // Northern boundary - slip eastward/westward
             vel.v = 0;  // Zero normal velocity
-            vel.u *= 1.0 / std::max(1.0 - xi, min_coord);
+            vel.u *= slipFactor / std::max(1.0 - xi, min_coord);
         }
 
         // Calculate new position with slip velocities

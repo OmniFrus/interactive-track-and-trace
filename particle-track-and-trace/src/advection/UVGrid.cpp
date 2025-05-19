@@ -17,6 +17,9 @@ UVGrid::UVGrid(string path) {
   }
 
   tie(times, lats, lons) = readGrid(path);
+  cout << "Reading shore distance data..." << endl;
+  auto [distances, shoreLats, shoreLons] = readShoreDistance(path);
+  shoreDistances = distances;
   cout << "Finished reading all files." << endl;
 
   timeSize = times.size();
@@ -85,4 +88,16 @@ void UVGrid::streamSlice(ostream &os, size_t t) {
     }
     os << endl;
   }
+}
+
+double UVGrid::getShoreDistance(size_t latIndex, size_t lonIndex) const {
+  if (latIndex < 0 || latIndex >= latSize || lonIndex < 0 || lonIndex >= lonSize) {
+    throw std::out_of_range(indexOutOfBounds);
+  }
+  size_t index = latIndex * lonSize + lonIndex;
+  return shoreDistances[index];
+}
+
+bool UVGrid::isNearShore(size_t latIndex, size_t lonIndex, double threshold) const {
+  return getShoreDistance(latIndex, lonIndex) <= threshold;
 }

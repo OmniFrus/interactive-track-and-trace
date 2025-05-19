@@ -14,6 +14,12 @@ private:
    * 1D data vector of all the us and vs
    */
   std::vector<Vel> uvData;
+
+  /**
+   * 1D data vector of distances to shore
+   */
+  std::vector<double> shoreDistances;
+
 public:
   /**
    * Constructs the UVGrid.
@@ -99,6 +105,23 @@ public:
    * @param t index with which to slice matrix
    */
   void streamSlice(std::ostream &os, size_t t);
+
+  /**
+   * Returns the distance to shore at the given grid point
+   * @param latIndex latitude index
+   * @param lonIndex longitude index
+   * @return distance to shore in meters
+   */
+  double getShoreDistance(size_t latIndex, size_t lonIndex) const;
+
+  /**
+   * Returns true if the point is near shore (within threshold distance)
+   * @param latIndex latitude index
+   * @param lonIndex longitude index
+   * @param threshold distance threshold in meters
+   * @return true if point is near shore
+   */
+  bool isNearShore(size_t latIndex, size_t lonIndex, double threshold) const;
 };
 
 #endif //UVGRID_H

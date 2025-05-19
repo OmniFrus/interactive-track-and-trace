@@ -36,6 +36,7 @@ I downloaded everything using vcpkg.
 ./vcpkg install vtk
 ./vcpkg install netcdf
 ./vcpkg install sfml
+./vcpkg install hdf5:x64-windows
 install PROJ.db -> https://download.osgeo.org/osgeo4w/
 
 Let the current directory be the `src` directory. Run:
