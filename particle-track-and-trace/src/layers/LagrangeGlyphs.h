@@ -9,6 +9,8 @@
 #include <vtkInteractorStyle.h>
 #include <vtkGlyphSource2D.h>
 #include <string>
+#include <vector>
+#include <utility>
 
 /**
  * Implements the Layer class for the case of a Lagrangian visualization.
@@ -47,6 +49,14 @@ public:
 
   void handleGameOver() override;
 
+  // Tracking methods
+  void startTracking(size_t particleIndex);
+  void stopTracking();
+  void printTrackedParticleInfo(const std::string& outputFilename) const;
+  const std::vector<std::pair<double, double>>& getTrackedPositions() const { return trackedPositions; }
+  const std::vector<std::pair<double, double>>& getTrackedVelocities() const { return trackedVelocities; }
+  const std::vector<double>& getTrackedDistancesToShore() const { return trackedDistancesToShore; }
+
 private:
   vtkNew<vtkPoints> points;
   vtkSmartPointer<vtkPolyData> data;
@@ -57,6 +67,13 @@ private:
   vtkNew<vtkGlyphSource2D> circleSource;
   int lastT = 1000;
   int beachedAtNumberOfTimes = 50;
+
+  // Tracking variables
+  bool isTracking = false;
+  size_t trackedParticleIndex = 0;
+  std::vector<std::pair<double, double>> trackedPositions;
+  std::vector<std::pair<double, double>> trackedVelocities;
+  std::vector<double> trackedDistancesToShore;
 
   /**
    * Load spawn locations from CSV file and create particles

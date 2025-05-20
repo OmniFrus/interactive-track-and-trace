@@ -19,6 +19,12 @@ private:
    * 1D data vector of distances to shore
    */
   std::vector<double> shoreDistances;
+  
+  /**
+   * Original shore distance grid coordinates
+   */
+  std::vector<double> shoreLats;
+  std::vector<double> shoreLons;
 
 public:
   /**
@@ -107,21 +113,21 @@ public:
   void streamSlice(std::ostream &os, size_t t);
 
   /**
-   * Returns the distance to shore at the given grid point
-   * @param latIndex latitude index
-   * @param lonIndex longitude index
-   * @return distance to shore in meters
+   * Returns the interpolated distance to shore at the given lat/lon point
+   * @param lat latitude
+   * @param lon longitude
+   * @return interpolated distance to shore in meters
    */
-  double getShoreDistance(size_t latIndex, size_t lonIndex) const;
+  double getShoreDistance(double lat, double lon) const;
 
   /**
    * Returns true if the point is near shore (within threshold distance)
-   * @param latIndex latitude index
-   * @param lonIndex longitude index
+   * @param lat latitude
+   * @param lon longitude
    * @param threshold distance threshold in meters
    * @return true if point is near shore
    */
-  bool isNearShore(size_t latIndex, size_t lonIndex, double threshold) const;
+  bool isNearShore(double lat, double lon, double threshold) const;
 };
 
 #endif //UVGRID_H

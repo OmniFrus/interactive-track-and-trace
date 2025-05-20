@@ -26,17 +26,17 @@ int main() {
   cout << "Creating UVGrid..." << endl;
   shared_ptr<UVGrid> uvGrid = make_shared<UVGrid>(dataPath);
   cout << "Created UVGrid." << endl;
-  
+
   auto kernelRK4 = make_unique<RK4AdvectionKernel>(uvGrid);
   unique_ptr<AdvectionKernel> boundaryKernel;
 
-    // Choose boundary handling here:
-    // For Snap:
-    // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
-    // Or for Partial Slip:
-    // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
-    // Or for Free Slip:
-     boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // Choose boundary handling here:
+  // For Snap:
+  // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // For Partial Slip:
+  // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // For Free Slip:
+   boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
 
   cout << "Starting vtk..." << endl;
   auto program = make_shared<Program>(dt);
@@ -47,9 +47,12 @@ int main() {
   auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(boundaryKernel), dataPath + "/spawn_locations.csv");
   litter->setToDiamond();
 
+  // Start tracking a specific particle (e.g., particle 100)
+  litter->startTracking(100);
+
   // Create Euler glyphs for flow visualization
   auto euler = make_shared<EulerGlyphs>(uvGrid);
-  
+
   // Create day counter
   auto dayCounter = make_shared<DayCounter>();
 
@@ -62,6 +65,11 @@ int main() {
   program->addLayer(dayCounter);
 
   program->render();
+
+  // Print tracked particle information after simulation
+  // The filename here should correspond to the chosen boundary condition above
+  // Example: if Free Slip is chosen, use "trajectory_freeslip.csv"
+  litter->printTrackedParticleInfo("particle_trajectory.csv");
 
   return EXIT_SUCCESS;
 }

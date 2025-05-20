@@ -25,6 +25,13 @@
 #include "../advection/kernel/SnapBoundaryConditionKernel.h"
 #include "../advection/kernel/FreeSlipBoundaryConditionKernel.h"
 #include "../advection/kernel/PartialSlipBoundaryConditionKernel.h"
+#include <cmath>
+#include <algorithm>
+#include <limits>
+
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
 
 vtkSmartPointer<SpawnPointCallback> LagrangeGlyphs::createSpawnPointCallback() {
   auto newPointCallBack = vtkSmartPointer<SpawnPointCallback>::New();
@@ -164,10 +171,20 @@ void LagrangeGlyphs::updateData(int t) {
           dt = t;
         }
         std::tie(point[1], point[0]) = advector->advect(t, point[1], point[0], dt);
-      }
 
-      // if the particle's location remains unchanged, increase beachedFor number. Else, decrease it and update point position.
-      //if (abs(oldX - point[0]) < EPS and abs(oldY-point[1]) < EPS) {
+        // Track particle if enabled
+        if (isTracking && n == trackedParticleIndex && i == SUPERSAMPLINGRATE - 1) {
+            trackedPositions.push_back({point[1], point[0]});
+            
+            // Calculate velocity
+            auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
+            trackedVelocities.push_back({vel.u, vel.v});
+
+            // Use GEBCO-based distance to shore
+            double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
+            trackedDistancesToShore.push_back(shoreDist);
+        }
+      }
 
       bool useVelocityBeaching = (this->boundaryType == BoundaryType::Snap);
       if (useVelocityBeaching) {
@@ -187,7 +204,7 @@ void LagrangeGlyphs::updateData(int t) {
               this->particlesBeached->SetValue(n, 0);
               this->points->SetPoint(n, point);
               modifiedData = true;
-            }
+          }
       }
     }
   }
@@ -222,4 +239,57 @@ void LagrangeGlyphs::setToDiamond() {
 void LagrangeGlyphs::handleGameOver() {
   points->Reset();
   particlesBeached->Reset();
+}
+
+void LagrangeGlyphs::startTracking(size_t particleIndex) {
+    isTracking = true;
+    trackedParticleIndex = particleIndex;
+    trackedPositions.clear();
+    trackedVelocities.clear();
+    trackedDistancesToShore.clear();
+}
+
+void LagrangeGlyphs::stopTracking() {
+    isTracking = false;
+}
+
+void LagrangeGlyphs::printTrackedParticleInfo(const std::string& outputFilename) const {
+    if (!isTracking || trackedPositions.empty()) {
+        std::cout << "No particle is being tracked or no data available." << std::endl;
+        return;
+    }
+
+    // Save to file
+    std::string outputPath = "C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/interactive-track-and-trace/particle-track-and-trace/" + outputFilename;
+    std::ofstream outFile(outputPath);
+    if (!outFile.is_open()) {
+        std::cerr << "Error: Could not open file for writing: " << outputPath << std::endl;
+        return;
+    }
+
+    try {
+        // Write header
+        outFile << "Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
+        
+        // Write data
+        for (size_t i = 0; i < trackedPositions.size(); ++i) {
+            const auto& pos = trackedPositions[i];
+            const auto& vel = trackedVelocities[i];
+            outFile << i << ","
+                    << pos.first << ","
+                    << pos.second << ","
+                    << vel.first << ","
+                    << vel.second << ","
+                    << trackedDistancesToShore[i] << "\n";
+        }
+        
+        outFile.close();
+        std::cout << "\nTrajectory data saved to: " << outputPath << std::endl;
+        std::cout << "Run 'python plot_trajectory.py' to visualize the particle path on a map." << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error writing to file: " << e.what() << std::endl;
+        if (outFile.is_open()) {
+            outFile.close();
+        }
+    }
 }
