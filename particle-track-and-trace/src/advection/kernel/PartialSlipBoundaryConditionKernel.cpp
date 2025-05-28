@@ -33,17 +33,13 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
         double distToNorth = std::abs(newLat - grid->latMax());
 
         if (distToWest <= distToEast && distToWest <= distToSouth && distToWest <= distToNorth) {
-            vel.u = 0;
-            vel.v *= (0.5 + 0.5 * eta) / eta;
+            vel.v *= (0.5 + 0.5 * xi) / xi;
         } else if (distToEast <= distToSouth && distToEast <= distToNorth) {
-            vel.u = 0;
-            vel.v *= (1.0 - 0.5 * eta) / (1.0 - eta);
+            vel.v *= (1.0 - 0.5 * xi) / (1.0 - xi);
         } else if (distToSouth <= distToNorth) {
-            vel.v = 0;
-            vel.u *= (0.5 + 0.5 * xi) / xi;
+            vel.u *= (0.5 + 0.5 * eta) / eta;
         } else {
-            vel.v = 0;
-            vel.u *= (1.0 - 0.5 * xi) / (1.0 - xi);
+            vel.u *= (1.0 - 0.5 * eta) / (1.0 - eta);
         }
 
         vel.u = std::clamp(vel.u, -maxVelocity, maxVelocity);
@@ -56,7 +52,7 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
         newLon = std::clamp(newLon, grid->lonMin() + epsilon, grid->lonMax() - epsilon);
     }
 
-    if (grid->getShoreDistance(newLat, newLon) < 100.0) {
+    if (grid->getShoreDistance(newLat, newLon) < 200.0) {
         return {latitude, longitude};
     }
 

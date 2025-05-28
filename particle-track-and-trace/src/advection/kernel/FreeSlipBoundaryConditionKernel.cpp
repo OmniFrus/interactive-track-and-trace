@@ -31,17 +31,21 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
         double distToNorth = std::abs(newLat - grid->latMax());
 
         if (distToWest <= distToEast && distToWest <= distToSouth && distToWest <= distToNorth) {
+            // Closest to West (vertical boundary): normal vel.u = 0, apply xi-formula to vel.v
             vel.u = 0;
-            vel.v *= 1.0 / eta;
+            vel.v *= 1.0 / xi; // Formula 4
         } else if (distToEast <= distToSouth && distToEast <= distToNorth) {
+            // Closest to East (vertical boundary): normal vel.u = 0, apply xi-formula to vel.v
             vel.u = 0;
-            vel.v *= 1.0 / (1.0 - eta);
+            vel.v *= 1.0 / (1.0 - xi); // Formula 8
         } else if (distToSouth <= distToNorth) {
+            // Closest to South (horizontal boundary): normal vel.v = 0, apply eta-formula to vel.u
             vel.v = 0;
-            vel.u *= 1.0 / xi;
+            vel.u *= 1.0 / eta; // Formula 1
         } else {
+            // Closest to North (horizontal boundary): normal vel.v = 0, apply eta-formula to vel.u
             vel.v = 0;
-            vel.u *= 1.0 / (1.0 - xi);
+            vel.u *= 1.0 / (1.0 - eta); // Formula 2
         }
 
         vel.u = std::clamp(vel.u, -maxVelocity, maxVelocity);
@@ -56,7 +60,7 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
 
     // Reject motion into coast
     double newShoreDist = grid->getShoreDistance(newLat, newLon);
-    if (newShoreDist < 100.0) {  // Within 100m of land
+    if (newShoreDist < 200.0) {  // Within 200m of land
         return {latitude, longitude};  // Stay in current location
     }
 
@@ -75,4 +79,3 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
 
     return {newLat, newLon};
 }
-

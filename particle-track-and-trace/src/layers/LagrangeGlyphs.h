@@ -52,7 +52,10 @@ public:
   // Tracking methods
   void startTracking(size_t particleIndex);
   void stopTracking();
+  void startTrackingAll();
+  void stopTrackingAll();
   void printTrackedParticleInfo(const std::string& outputFilename) const;
+  void printAllParticlesInfo(const std::string& outputFilename) const;
   const std::vector<std::pair<double, double>>& getTrackedPositions() const { return trackedPositions; }
   const std::vector<std::pair<double, double>>& getTrackedVelocities() const { return trackedVelocities; }
   const std::vector<double>& getTrackedDistancesToShore() const { return trackedDistancesToShore; }
@@ -70,10 +73,16 @@ private:
 
   // Tracking variables
   bool isTracking = false;
+  bool isTrackingAll = false;
   size_t trackedParticleIndex = 0;
   std::vector<std::pair<double, double>> trackedPositions;
   std::vector<std::pair<double, double>> trackedVelocities;
   std::vector<double> trackedDistancesToShore;
+  
+  // All particles tracking
+  std::vector<std::vector<std::pair<double, double>>> allParticlePositions;
+  std::vector<std::vector<std::pair<double, double>>> allParticleVelocities;
+  std::vector<std::vector<double>> allParticleDistancesToShore;
 
   /**
    * Load spawn locations from CSV file and create particles

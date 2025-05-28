@@ -184,6 +184,19 @@ void LagrangeGlyphs::updateData(int t) {
             double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
             trackedDistancesToShore.push_back(shoreDist);
         }
+        
+        // Track all particles if enabled
+        if (isTrackingAll && i == SUPERSAMPLINGRATE - 1) {
+            allParticlePositions[n].push_back({point[1], point[0]});
+            
+            // Calculate velocity
+            auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
+            allParticleVelocities[n].push_back({vel.u, vel.v});
+
+            // Use GEBCO-based distance to shore
+            double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
+            allParticleDistancesToShore[n].push_back(shoreDist);
+        }
       }
 
       bool useVelocityBeaching = (this->boundaryType == BoundaryType::Snap);
@@ -286,6 +299,72 @@ void LagrangeGlyphs::printTrackedParticleInfo(const std::string& outputFilename)
         outFile.close();
         std::cout << "\nTrajectory data saved to: " << outputPath << std::endl;
         std::cout << "Run 'python plot_trajectory.py' to visualize the particle path on a map." << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error writing to file: " << e.what() << std::endl;
+        if (outFile.is_open()) {
+            outFile.close();
+        }
+    }
+}
+
+void LagrangeGlyphs::startTrackingAll() {
+    isTrackingAll = true;
+    isTracking = false;  // Disable single particle tracking
+    allParticlePositions.clear();
+    allParticleVelocities.clear();
+    allParticleDistancesToShore.clear();
+    
+    // Initialize vectors for each particle
+    size_t numParticles = points->GetNumberOfPoints();
+    allParticlePositions.resize(numParticles);
+    allParticleVelocities.resize(numParticles);
+    allParticleDistancesToShore.resize(numParticles);
+}
+
+void LagrangeGlyphs::stopTrackingAll() {
+    isTrackingAll = false;
+}
+
+void LagrangeGlyphs::printAllParticlesInfo(const std::string& outputFilename) const {
+    if (!isTrackingAll || allParticlePositions.empty()) {
+        std::cout << "No particles are being tracked or no data available." << std::endl;
+        return;
+    }
+
+    // Save to file
+    std::string outputPath = "C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/interactive-track-and-trace/particle-track-and-trace/" + outputFilename;
+    std::ofstream outFile(outputPath);
+    if (!outFile.is_open()) {
+        std::cerr << "Error: Could not open file for writing: " << outputPath << std::endl;
+        return;
+    }
+
+    try {
+        // Write header
+        outFile << "ParticleID,Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
+        
+        // Write data for each particle
+        for (size_t particleId = 0; particleId < allParticlePositions.size(); ++particleId) {
+            const auto& positions = allParticlePositions[particleId];
+            const auto& velocities = allParticleVelocities[particleId];
+            const auto& distances = allParticleDistancesToShore[particleId];
+            
+            for (size_t step = 0; step < positions.size(); ++step) {
+                const auto& pos = positions[step];
+                const auto& vel = velocities[step];
+                outFile << particleId << ","
+                        << step << ","
+                        << pos.first << ","
+                        << pos.second << ","
+                        << vel.first << ","
+                        << vel.second << ","
+                        << distances[step] << "\n";
+            }
+        }
+        
+        outFile.close();
+        std::cout << "\nAll particles trajectory data saved to: " << outputPath << std::endl;
+        std::cout << "Run 'python plot_trajectory.py' to visualize the particle paths on a map." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error writing to file: " << e.what() << std::endl;
         if (outFile.is_open()) {

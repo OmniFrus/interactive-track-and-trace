@@ -34,9 +34,9 @@ int main() {
   // For Snap:
   // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Partial Slip:
-  // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+   boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Free Slip:
-   boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
 
   cout << "Starting vtk..." << endl;
   auto program = make_shared<Program>(dt);
@@ -47,8 +47,11 @@ int main() {
   auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(boundaryKernel), dataPath + "/spawn_locations.csv");
   litter->setToDiamond();
 
-  // Start tracking a specific particle (e.g., particle 100)
-  litter->startTracking(100);
+  // If u want to track all particles, use this:
+  // litter->startTrackingAll();
+
+  // If u only want to track a single particle, use this:
+   litter->startTracking(100);
 
   // Create Euler glyphs for flow visualization
   auto euler = make_shared<EulerGlyphs>(uvGrid);
@@ -66,10 +69,12 @@ int main() {
 
   program->render();
 
-  // Print tracked particle information after simulation
-  // The filename here should correspond to the chosen boundary condition above
-  // Example: if Free Slip is chosen, use "trajectory_freeslip.csv"
-  litter->printTrackedParticleInfo("particle_trajectory.csv");
+  // Print all tracked particle information after simulation
+  // litter->printAllParticlesInfo("all_particles_trajectory.csv");
+
+  //if u only want to track a single particle, use this:
+   litter->printTrackedParticleInfo("single_particle_trajectory.csv");
+
 
   return EXIT_SUCCESS;
 }
