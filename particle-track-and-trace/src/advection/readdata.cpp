@@ -9,7 +9,7 @@ using namespace netCDF;
 
 template<typename T>
 vector<T> getVarVector(const NcVar &var) {
-  int length = 1;
+  size_t length = 1;
   for (NcDim dim: var.getDims()) {
     length *= dim.getSize();
   }
@@ -47,30 +47,14 @@ vector<double> readHydrodynamicV(string path) {
   return getVarVector<double>(vars.find("uo")->second);
 }
 
-tuple<vector<int>, vector<double>, vector<double>> readGrid(string path) {
-  string fileName = "grid.h5";
+tuple<vector<int>, vector<double>, vector<double>, vector<double>> readGrid(string path) {
+  string fileName = "shore_distance_on_grid.h5";
   netCDF::NcFile data(path + '/' + fileName, netCDF::NcFile::read);
   multimap<string, NcVar> vars = data.getVars();
   vector<int> time = getVarVector<int>(vars.find("times")->second);
   vector<double> longitude = getVarVector<double>(vars.find("longitude")->second);
   vector<double> latitude = getVarVector<double>(vars.find("latitude")->second);
+  vector<double> shore_distance = getVarVector<double>(vars.find("distance")->second);
 
-  return {time, latitude, longitude};
-}
-
-tuple<vector<double>, vector<double>, vector<double>> readShoreDistance(string path) {
-  string fileName = "shore_distance.h5";
-  cout << "Opening " << path + '/' + fileName << endl;
-  netCDF::NcFile data(path + '/' + fileName, netCDF::NcFile::read);
-  multimap<string, NcVar> vars = data.getVars();
-
-  auto it = vars.find("distance");
-  if (it == vars.end()) {
-      throw std::runtime_error("'distance' not found in shore_distance.h5");
-  }
-  vector<double> distances = getVarVector<double>(it->second);
-  vector<double> latitude = getVarVector<double>(vars.find("lat")->second);
-  vector<double> longitude = getVarVector<double>(vars.find("lon")->second);
-
-  return {distances, latitude, longitude};
+  return {time, latitude, longitude, shore_distance};
 }

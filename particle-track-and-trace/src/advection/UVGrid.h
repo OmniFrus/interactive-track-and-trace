@@ -98,12 +98,13 @@ public:
   std::vector<int> times;
   std::vector<double> lats;
   std::vector<double> lons;
+  std::vector<double> shoredistances;
 
   /**
    * The 3D index into the data. The array is sized by [8761][67][116]
    * @return Velocity at that index
    */
-  const Vel &operator[](size_t timeIndex, size_t latIndex, size_t lonIndex) const;
+  const Vel &getVelocity(size_t timeIndex, size_t latIndex, size_t lonIndex) const;
 
   /**
    * Streams a slice at timeIndex t of the matrix to the outstream given by os

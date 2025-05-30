@@ -16,10 +16,12 @@ UVGrid::UVGrid(string path) {
     throw domain_error(sizeError2);
   }
 
-  tie(times, lats, lons) = readGrid(path);
-  cout << "Reading shore distance data..." << endl;
-  tie(shoreDistances, shoreLats, shoreLons) = readShoreDistance(path);
-  cout << "Finished reading all files." << endl;
+  // Read grid data which now includes shore distances
+  auto [times, lats, lons, shoreDistances] = readGrid(path);
+  this->times = times;
+  this->lats = lats;
+  this->lons = lons;
+  this->shoreDistances = shoreDistances;
 
   timeSize = times.size();
   latSize = lats.size();
@@ -37,7 +39,7 @@ UVGrid::UVGrid(string path) {
   }
 }
 
-const Vel &UVGrid::operator[](size_t timeIndex, size_t latIndex, size_t lonIndex) const {
+const Vel &UVGrid::getVelocity(size_t timeIndex, size_t latIndex, size_t lonIndex) const {
   if (timeIndex < 0 || timeIndex >= timeSize
       || latIndex < 0 || latIndex >= latSize
       || lonIndex < 0 || lonIndex >= lonSize) {
@@ -82,7 +84,7 @@ double UVGrid::timeMax() const {
 void UVGrid::streamSlice(ostream &os, size_t t) {
   for (int x = 0; x < latSize; x++) {
     for (int y = 0; y < lonSize; y++) {
-      auto vel = (*this)[t, x, y];
+      auto vel = getVelocity(t, x, y);
       os << vel << " ";
     }
     os << endl;
@@ -90,9 +92,19 @@ void UVGrid::streamSlice(ostream &os, size_t t) {
 }
 
 double UVGrid::getShoreDistance(double lat, double lon) const {
-  return interpolateShoreDistance(shoreDistances, shoreLats, shoreLons, lat, lon);
+  // Find the grid cell containing the point
+  int latIndex = (lat - lats[0]) / latStep();
+  int lonIndex = (lon - lons[0]) / lonStep();
+  
+  // Clamp indices to valid range
+  latIndex = std::clamp(latIndex, 0, static_cast<int>(latSize - 1));
+  lonIndex = std::clamp(lonIndex, 0, static_cast<int>(lonSize - 1));
+  
+  // Get the shore distance at this grid point
+  return shoreDistances[latIndex * lonSize + lonIndex];
 }
 
 bool UVGrid::isNearShore(double lat, double lon, double threshold) const {
   return getShoreDistance(lat, lon) <= threshold;
 }
+

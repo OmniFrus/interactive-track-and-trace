@@ -17,12 +17,6 @@ std::vector<double> readHydrodynamicV(std::string path);
  * Reads the file grid.h5
  * @return a tuple of (times, latitude, longitude)
  */
-std::tuple<std::vector<int>, std::vector<double>, std::vector<double>> readGrid(std::string path);
-
-/**
- * Reads the shore distance data from shore_distance.h5
- * @return a tuple of (distances, latitude, longitude)
- */
-std::tuple<std::vector<double>, std::vector<double>, std::vector<double>> readShoreDistance(std::string path);
+std::tuple<std::vector<int>, std::vector<double>, std::vector<double>, std::vector<double>> readGrid(std::string path);
 
 #endif //READDATA_H
