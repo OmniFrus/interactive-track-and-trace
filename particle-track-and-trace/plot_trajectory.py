@@ -45,7 +45,7 @@ for i in range(0, len(df), step):
               color='black', scale=50, transform=ccrs.PlateCarree())
 
 # Overlay grid points from grid.h5 or shore_distance.h5
-grid_file = "../../data/shore_distance_on_grid.h5"  # or "shore_distance.h5" if you prefer
+grid_file = "../../data/grid.h5"  # or "shore_distance.h5" if you prefer
 with h5py.File(grid_file, "r") as f:
     # Try both naming conventions
     if "latitude" in f and "longitude" in f:

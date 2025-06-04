@@ -64,18 +64,5 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
         return {latitude, longitude};  // Stay in current location
     }
 
-    // Optional: fallback if nearly stuck
-    double vel2 = vel.u * vel.u + vel.v * vel.v;
-    if (vel2 < minVelocity * minVelocity) {
-        if (vel2 > 0) {
-            double norm = std::sqrt(vel2);
-            newLat += metreToDegrees((vel.v / norm) * epsilon);
-            newLon += metreToDegrees((vel.u / norm) * epsilon);
-        } else {
-            newLat += epsilon;
-            newLon += epsilon;
-        }
-    }
-
     return {newLat, newLon};
 }

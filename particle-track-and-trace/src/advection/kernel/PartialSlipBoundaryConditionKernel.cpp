@@ -33,13 +33,13 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
         double distToNorth = std::abs(newLat - grid->latMax());
 
         if (distToWest <= distToEast && distToWest <= distToSouth && distToWest <= distToNorth) {
-            vel.v *= (0.5 + 0.5 * xi) / xi;
+            vel.v *= (1.0 - 1.0 / (2.0 * xi)) / (1.0 - xi);
         } else if (distToEast <= distToSouth && distToEast <= distToNorth) {
-            vel.v *= (1.0 - 0.5 * xi) / (1.0 - xi);
+            vel.v *= (1.0 - 1.0 / (2.0 * (1.0 - xi)) / xi);
         } else if (distToSouth <= distToNorth) {
-            vel.u *= (0.5 + 0.5 * eta) / eta;
+            vel.u *= (1.0 - 1.0 / (2.0 * eta)) / (1.0 - eta);
         } else {
-            vel.u *= (1.0 - 0.5 * eta) / (1.0 - eta);
+            vel.u *= (1.0 - 1.0 / (2.0 * (1.0 - eta)) / eta);
         }
 
         vel.u = std::clamp(vel.u, -maxVelocity, maxVelocity);
@@ -50,22 +50,6 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
 
         newLat = std::clamp(newLat, grid->latMin() + epsilon, grid->latMax() - epsilon);
         newLon = std::clamp(newLon, grid->lonMin() + epsilon, grid->lonMax() - epsilon);
-    }
-
-    if (grid->getShoreDistance(newLat, newLon) < 200.0) {
-        return {latitude, longitude};
-    }
-
-    double vel2 = vel.u * vel.u + vel.v * vel.v;
-    if (vel2 < minVelocity * minVelocity) {
-        if (vel2 > 0) {
-            double norm = std::sqrt(vel2);
-            newLat += metreToDegrees((vel.v / norm) * epsilon);
-            newLon += metreToDegrees((vel.u / norm) * epsilon);
-        } else {
-            newLat += epsilon;
-            newLon += epsilon;
-        }
     }
 
     return {newLat, newLon};
