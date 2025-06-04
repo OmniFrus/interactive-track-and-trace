@@ -128,6 +128,15 @@ public:
    * @return true if point is near shore
    */
   bool isNearShore(double lat, double lon, double threshold) const;
+
+  /**
+   * Returns the shoreline tangent vector at the given lat/lon point
+   * The tangent vector points along the shoreline, with magnitude 1
+   * @param lat latitude
+   * @param lon longitude
+   * @return pair of (tangent_x, tangent_y) components
+   */
+  std::pair<double, double> getShorelineTangent(double lat, double lon) const;
 };
 
 #endif //UVGRID_H

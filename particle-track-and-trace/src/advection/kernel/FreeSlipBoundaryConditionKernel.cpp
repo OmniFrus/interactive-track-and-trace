@@ -2,6 +2,7 @@
 #include "../interpolate.h"
 #include <cmath>
 #include <algorithm>
+#include <iostream>
 
 FreeSlipBoundaryConditionKernel::FreeSlipBoundaryConditionKernel(
     std::unique_ptr<AdvectionKernel> baseKernel,
@@ -11,12 +12,14 @@ FreeSlipBoundaryConditionKernel::FreeSlipBoundaryConditionKernel(
 
 std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, double latitude, double longitude, int dt) const {
     auto [newLat, newLon] = baseKernel->advect(time, latitude, longitude, dt);
+
     const double epsilon = 1e-5;
-    const double shoreThreshold = 5000.0; // 5km
+    const double shoreThreshold = 5000.0; // 2 km
     const double minVelocity = 1e-4;
     const double maxVelocity = 3.0;
     const double minCoord = 0.05;
 
+    // Get velocity at the current position (needed for slip logic)
     auto vel = bilinearinterpolate(*grid, time, latitude, longitude);
 
     if (grid->isNearShore(latitude, longitude, shoreThreshold)) {
@@ -30,18 +33,28 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
         double distToSouth = std::abs(newLat - grid->latMin());
         double distToNorth = std::abs(newLat - grid->latMax());
 
+        // Apply Parcels-style free slip based on boundary direction
+        // Using their exact scaling factors:
+        // 1: f_u = 1/η, η = eta 
+        // 2: f_u = 1/(1-η)
+        // 4: f_v = 1/ξ, ξ = xi
+        // 8: f_v = 1/(1-ξ)
         if (distToWest <= distToEast && distToWest <= distToSouth && distToWest <= distToNorth) {
-            vel.u = 0;
-            vel.v *= 1.0 / eta;
+            // Western boundary - slip northward/southward
+            vel.u = 0;  // Zero normal velocity
+            vel.v *= 1.0 / xi;  // Formula 4
         } else if (distToEast <= distToSouth && distToEast <= distToNorth) {
-            vel.u = 0;
-            vel.v *= 1.0 / (1.0 - eta);
+            // Eastern boundary - slip northward/southward
+            vel.u = 0;  // Zero normal velocity
+            vel.v *= 1.0 / (1.0 - xi);  // Formula 8
         } else if (distToSouth <= distToNorth) {
-            vel.v = 0;
-            vel.u *= 1.0 / xi;
+            // Southern boundary - slip eastward/westward
+            vel.v = 0;  // Zero normal velocity
+            vel.u *= 1.0 / eta;  // Formula 1 
         } else {
-            vel.v = 0;
-            vel.u *= 1.0 / (1.0 - xi);
+            // Northern boundary - slip eastward/westward
+            vel.v = 0;  // Zero normal velocity
+            vel.u *= 1.0 / (1.0 - eta);  // Formula 2
         }
 
         vel.u = std::clamp(vel.u, -maxVelocity, maxVelocity);
@@ -53,26 +66,11 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
         newLat = std::clamp(newLat, grid->latMin() + epsilon, grid->latMax() - epsilon);
         newLon = std::clamp(newLon, grid->lonMin() + epsilon, grid->lonMax() - epsilon);
     }
-
     // Reject motion into coast
     double newShoreDist = grid->getShoreDistance(newLat, newLon);
-    if (newShoreDist < 100.0) {  // Within 100m of land
+    if (newShoreDist < 200.0) {  // Within 100m of land
         return {latitude, longitude};  // Stay in current location
-    }
-
-    // Optional: fallback if nearly stuck
-    double vel2 = vel.u * vel.u + vel.v * vel.v;
-    if (vel2 < minVelocity * minVelocity) {
-        if (vel2 > 0) {
-            double norm = std::sqrt(vel2);
-            newLat += metreToDegrees((vel.v / norm) * epsilon);
-            newLon += metreToDegrees((vel.u / norm) * epsilon);
-        } else {
-            newLat += epsilon;
-            newLon += epsilon;
-        }
     }
 
     return {newLat, newLon};
 }
-

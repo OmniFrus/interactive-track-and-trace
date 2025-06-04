@@ -13,12 +13,12 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
     auto [newLat, newLon] = baseKernel->advect(time, latitude, longitude, dt);
 
     const double epsilon = 1e-5;
-    const double shoreThreshold = 5000.0; // 5 km
+    const double shoreThreshold = 5000.0; // 2 km
     const double minVelocity = 1e-4;
     const double maxVelocity = 3.0;
     const double minCoord = 0.05;
-    const double slipRatio = 0.5;  // Between 0 (no slip) and 1 (full slip)
 
+    // Get velocity at the current position (needed for slip logic)
     auto vel = bilinearinterpolate(*grid, time, latitude, longitude);
 
     if (grid->isNearShore(latitude, longitude, shoreThreshold)) {
@@ -33,17 +33,13 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
         double distToNorth = std::abs(newLat - grid->latMax());
 
         if (distToWest <= distToEast && distToWest <= distToSouth && distToWest <= distToNorth) {
-            vel.u = 0;
-            vel.v *= (0.5 + 0.5 * eta) / eta;
+            vel.v *= (1.0 - 1.0 / (2.0 * xi)) / (1.0 - xi);
         } else if (distToEast <= distToSouth && distToEast <= distToNorth) {
-            vel.u = 0;
-            vel.v *= (1.0 - 0.5 * eta) / (1.0 - eta);
+            vel.v *= (1.0 - 1.0 / (2.0 * (1.0 - xi))) / xi;
         } else if (distToSouth <= distToNorth) {
-            vel.v = 0;
-            vel.u *= (0.5 + 0.5 * xi) / xi;
+            vel.u *= (1.0 - 1.0 / (2.0 * eta)) / (1.0 - eta);
         } else {
-            vel.v = 0;
-            vel.u *= (1.0 - 0.5 * xi) / (1.0 - xi);
+            vel.u *= (1.0 - 1.0 / (2.0 * (1.0 - eta))) / eta;
         }
 
         vel.u = std::clamp(vel.u, -maxVelocity, maxVelocity);
@@ -56,21 +52,6 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
         newLon = std::clamp(newLon, grid->lonMin() + epsilon, grid->lonMax() - epsilon);
     }
 
-    if (grid->getShoreDistance(newLat, newLon) < 100.0) {
-        return {latitude, longitude};
-    }
-
-    double vel2 = vel.u * vel.u + vel.v * vel.v;
-    if (vel2 < minVelocity * minVelocity) {
-        if (vel2 > 0) {
-            double norm = std::sqrt(vel2);
-            newLat += metreToDegrees((vel.v / norm) * epsilon);
-            newLon += metreToDegrees((vel.u / norm) * epsilon);
-        } else {
-            newLat += epsilon;
-            newLon += epsilon;
-        }
-    }
 
     return {newLat, newLon};
 }
