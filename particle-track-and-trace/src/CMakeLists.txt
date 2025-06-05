@@ -81,6 +81,8 @@ add_executable(ParticleTrackTrace MACOSX_BUNDLE
     advection/kernel/FreeSlipBoundaryConditionKernel.cpp
     advection/kernel/PartialSlipBoundaryConditionKernel.h
     advection/kernel/PartialSlipBoundaryConditionKernel.cpp
+    advection/kernel/DualBoundaryConditionKernel.h
+    advection/kernel/DualBoundaryConditionKernel.cpp
     layers/Character.h
     layers/Character.cpp
     commands/CharacterMoveCallback.h

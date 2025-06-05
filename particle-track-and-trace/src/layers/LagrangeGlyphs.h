@@ -59,6 +59,7 @@ public:
   const std::vector<std::pair<double, double>>& getTrackedPositions() const { return trackedPositions; }
   const std::vector<std::pair<double, double>>& getTrackedVelocities() const { return trackedVelocities; }
   const std::vector<double>& getTrackedDistancesToShore() const { return trackedDistancesToShore; }
+  const std::vector<int>& getCoastalResidenceTimes() const { return coastalResidenceTimes; }
 
 private:
   vtkNew<vtkPoints> points;
@@ -83,6 +84,8 @@ private:
   std::vector<std::vector<std::pair<double, double>>> allParticlePositions;
   std::vector<std::vector<std::pair<double, double>>> allParticleVelocities;
   std::vector<std::vector<double>> allParticleDistancesToShore;
+  std::vector<int> coastalResidenceTimes;
+  std::vector<int> dualConditionResidenceTimes;
 
   /**
    * Load spawn locations from CSV file and create particles
@@ -95,7 +98,8 @@ private:
   enum class BoundaryType {
       Snap,
       FreeSlip,
-      PartialSlip
+      PartialSlip,
+      DualCondition
   };
   
   BoundaryType boundaryType;
