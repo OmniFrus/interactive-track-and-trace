@@ -10,7 +10,7 @@
 #include "advection/kernel/SnapBoundaryConditionKernel.h"
 #include "advection/kernel/FreeSlipBoundaryConditionKernel.h"
 #include "advection/kernel/PartialSlipBoundaryConditionKernel.h"
-#include "advection/kernel/SnapBoundaryConditionKernel.h"
+#include "advection/kernel/DualBoundaryConditionKernel.h"
 
 #include <vtkPolyDataMapper2D.h>
 #include <vtkProperty2D.h>
@@ -37,6 +37,8 @@ int main() {
    boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Free Slip:
   // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // For Dual Condition:
+   boundaryKernel = make_unique<DualBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
 
   cout << "Starting vtk..." << endl;
   auto program = make_shared<Program>(dt);
@@ -48,9 +50,9 @@ int main() {
   litter->setToDiamond();
 
   // If u want to track all particles, use this:
-  //litter->startTrackingAll();
-  
-  // Start tracking a specific particle (e.g., particle 100)
+  // litter->startTrackingAll();
+
+  // If u only want to track a single particle, use this:
    litter->startTracking(100);
 
   // Create Euler glyphs for flow visualization

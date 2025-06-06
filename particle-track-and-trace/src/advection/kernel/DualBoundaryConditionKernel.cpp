@@ -1,21 +1,21 @@
-#include "FreeSlipBoundaryConditionKernel.h"
+#include "DualBoundaryConditionKernel.h"
 #include "../interpolate.h"
 #include <cmath>
 #include <algorithm>
 
-// Implements a free-slip boundary condition where particles can move freely along the coast
-// but cannot move into the land. This is achieved by:
-// 1. Projecting the velocity onto the shoreline tangent
-// 2. Only allowing movement along the tangent direction
-// 3. Using a 2km buffer zone around the coast
+// The beaching mechanics are in LagrangeGlyphs.cpp
+// This implementation combines:
+// 1. Near-free-slip behavior (slipRatio = 0.95) for particles moving along the coast
+// 2. Custom beaching mechanics that are implemented in LagrangeGlyphs.cpp
+// 3. A 2km buffer zone around the coast where the boundary conditions are applied
 
-FreeSlipBoundaryConditionKernel::FreeSlipBoundaryConditionKernel(
+DualBoundaryConditionKernel::DualBoundaryConditionKernel(
     std::unique_ptr<AdvectionKernel> baseKernel,
     std::shared_ptr<UVGrid> grid)
     : baseKernel(std::move(baseKernel))
     , grid(std::move(grid)) {}
 
-std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, double latitude, double longitude, int dt) const {
+std::pair<double, double> DualBoundaryConditionKernel::advect(int time, double latitude, double longitude, int dt) const {
     // Get the velocity at the current position using bilinear interpolation
     auto vel = bilinearinterpolate(*grid, time, latitude, longitude);
 
@@ -24,7 +24,7 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
     const double shoreThreshold = 2000.0; // 2km buffer zone around the coast
     const double minVelocity = 1e-4;      // Minimum velocity threshold
     const double maxVelocity = 3.0;       // Maximum velocity threshold
-    const double minCoord = 0.05;         // Minimum coordinate value
+    const double slipRatio = 0.95;        // Almost free-slip (0 = no slip, 1 = full slip)
 
     // Initialize new position with current position
     double newLat = latitude;
@@ -55,12 +55,15 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
             double tangent_x = -normal_y;
             double tangent_y = normal_x;
             
-            // Project velocity onto tangent direction only (free-slip)
-            double v_t = vel.u * tangent_x + vel.v * tangent_y;
-            
-            // Calculate slip velocity (only tangential component)
-            double slip_u = v_t * tangent_x;
-            double slip_v = v_t * tangent_y;
+            // Project velocity onto normal and tangential components
+            double v_n = vel.u * normal_x + vel.v * normal_y;  // Normal component
+            double v_t = vel.u * tangent_x + vel.v * tangent_y; // Tangential component
+
+            // Calculate slip velocity:
+            // Normal component is reduced by (1 - slipRatio)
+            // Tangential component remains full (free-slip along coast)
+            double slip_u = (1.0 - slipRatio) * v_n * normal_x + v_t * tangent_x;
+            double slip_v = (1.0 - slipRatio) * v_n * normal_y + v_t * tangent_y;
             
             // Update position using slip velocity
             newLon = longitude + metreToDegrees(slip_u * dt);
@@ -71,13 +74,10 @@ std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, doub
             newLon = std::clamp(newLon, grid->lonMin() + epsilon, grid->lonMax() - epsilon);
 
             return {newLat, newLon};
-        } else {
-            // If gradient is too small, prevent movement
-            return {latitude, longitude};
         }
     }
 
-    // If not near shore, use normal advection
+    // If not near shore or gradient is too small, use normal advection
     auto advected = baseKernel->advect(time, latitude, longitude, dt);
     return advected;
 }

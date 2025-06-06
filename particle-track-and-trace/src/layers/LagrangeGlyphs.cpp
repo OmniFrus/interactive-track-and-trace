@@ -25,6 +25,7 @@
 #include "../advection/kernel/SnapBoundaryConditionKernel.h"
 #include "../advection/kernel/FreeSlipBoundaryConditionKernel.h"
 #include "../advection/kernel/PartialSlipBoundaryConditionKernel.h"
+#include "../advection/kernel/DualBoundaryConditionKernel.h"
 #include <cmath>
 #include <algorithm>
 #include <limits>
@@ -53,6 +54,8 @@ LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<Adv
       this->boundaryType = BoundaryType::FreeSlip;
   } else if (dynamic_cast<PartialSlipBoundaryConditionKernel*>(advector.get())) {
       this->boundaryType = BoundaryType::PartialSlip;
+  } else if (dynamic_cast<DualBoundaryConditionKernel*>(advector.get())) {
+      this->boundaryType = BoundaryType::DualCondition;
   } else {
       throw std::runtime_error("Unknown boundary kernel type");
   }
@@ -96,6 +99,9 @@ LagrangeGlyphs::LagrangeGlyphs(std::shared_ptr<UVGrid> grid, std::unique_ptr<Adv
 
   // Load and spawn particles from CSV file
   spawnParticlesFromFile(spawnFile);
+
+  // Initialize dualConditionResidenceTimes
+  dualConditionResidenceTimes.resize(this->points->GetNumberOfPoints(), 0);
 }
 
 void LagrangeGlyphs::spawnParticlesFromFile(const std::string& filename) {
@@ -124,6 +130,7 @@ void LagrangeGlyphs::spawnParticlesFromFile(const std::string& filename) {
           this->points->InsertNextPoint(lon, lat, 0);
           this->particlesBeached->InsertNextValue(0);
           this->initialSpawnPositions.push_back({lat, lon}); // Store the initial position
+          this->coastalResidenceTimes.push_back(0);
         }
       } catch (const std::exception& e) {
         std::cerr << "Error parsing line: " << line << std::endl;
@@ -145,6 +152,8 @@ void LagrangeGlyphs::updateData(int t) {
   const int SUPERSAMPLINGRATE = 4;
   double point[3], oldX, oldY;
   bool modifiedData = false;
+  int dtTotal = t - this->lastT;
+  if (dtTotal < 0) dtTotal = t;
 
   // iterate over every point.
   for (vtkIdType n = 0; n < this->points->GetNumberOfPoints(); n++) {
@@ -187,22 +196,25 @@ void LagrangeGlyphs::updateData(int t) {
             double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
             trackedDistancesToShore.push_back(shoreDist);
         }
+        
         // Track all particles if enabled
         if (isTrackingAll && i == SUPERSAMPLINGRATE - 1) {
-            // Add the position *after* advection as the next step's data
             allParticlePositions[n].push_back({point[1], point[0]});
             
-            // Calculate velocity *at the new position* after advection
+            // Calculate velocity
             auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
             allParticleVelocities[n].push_back({vel.u, vel.v});
 
-            // Use GEBCO-based distance to shore *at the new position* after advection
+            // Use GEBCO-based distance to shore
             double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
             allParticleDistancesToShore[n].push_back(shoreDist);
         }
       }
 
-      if (this->boundaryType == BoundaryType::Snap) {
+      // Beaching logic for all boundary types. (Snap, FreeSlip, PartialSlip, DualCondition)
+      bool useVelocityBeaching = (this->boundaryType == BoundaryType::Snap);
+      // Snap boundary type: only beach if 4 out of the 8 neighbours have zero velocity.
+      if (useVelocityBeaching) {
           if (isNearestNeighbourZero(*uvGrid, t, point[1], point[0])) {
               this->particlesBeached->SetValue(n, beachedFor + 1);
           } else {
@@ -210,30 +222,70 @@ void LagrangeGlyphs::updateData(int t) {
               this->points->SetPoint(n, point);
               modifiedData = true;
           }
-      } else {
-          // Logic for FreeSlip and PartialSlip boundary conditions
-          // Check if outside grid (permanent beaching)
-          if (point[0] <= uvGrid->lonMin() || point[0] >= uvGrid->lonMax() ||
-              point[1] <= uvGrid->latMin() || point[1] >= uvGrid->latMax()) {
-              this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
-          } else {
-              // Check distance to shore for beaching criteria
-              const double beachingThreshold = 1e-3; // Define a small threshold for "zero" distance
-              // Calculate distance to shore after advection for beaching checks
-              double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
-
-              if (shoreDist < beachingThreshold) {
-                  // Particle is very close to shore, increment beached count
-                  this->particlesBeached->SetValue(n, beachedFor + 1);
-                  this->points->SetPoint(n, point); // Update point to new location near shore
-                  modifiedData = true;
+                } else if (this->boundaryType == BoundaryType::DualCondition) {
+          const int bufferTimeThreshold = 10;
+          bool nearShoreAfter = uvGrid->isNearShore(point[1], point[0], 5000.0);
+          if (nearShoreAfter) {
+              const double delta = AdvectionKernel::metreToDegrees(100);
+              double gradLat = (uvGrid->getShoreDistance(oldY + delta, oldX) -
+                                uvGrid->getShoreDistance(oldY - delta, oldX)) /
+                               (2 * delta);
+              double gradLon = (uvGrid->getShoreDistance(oldY, oldX + delta) -
+                                uvGrid->getShoreDistance(oldY, oldX - delta)) /
+                               (2 * delta);
+              auto vel = bilinearinterpolate(*uvGrid, t, oldY, oldX);
+              double dot = vel.u * gradLon + vel.v * gradLat;
+              double shoreDistAfter = uvGrid->getShoreDistance(point[1], point[0]);
+              if (dot < 0 && shoreDistAfter < 200.0) {
+                  dualConditionResidenceTimes[n] += 1;
               } else {
-                  // Particle is not beached by distance and within bounds, reset beached status and update point
-                  this->particlesBeached->SetValue(n, std::max(beachedFor - 1, 0)); // Decrement, but not below 0
+                  dualConditionResidenceTimes[n] = 0;
+              }
+              if (dualConditionResidenceTimes[n] >= bufferTimeThreshold) {
+                  this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
+              } else {
+                  this->particlesBeached->SetValue(n, 0);
+                  this->points->SetPoint(n, point);
+                  modifiedData = true;
+              }
+          } else {
+              dualConditionResidenceTimes[n] = 0;
+              this->particlesBeached->SetValue(n, 0);
+              this->points->SetPoint(n, point);
+              modifiedData = true;
+          }
+      } else {
+          // In FreeSlip: only beach if outside grid
+          if (this->boundaryType == BoundaryType::FreeSlip) {
+              if (point[0] <= uvGrid->lonMin() || point[0] >= uvGrid->lonMax() ||
+                  point[1] <= uvGrid->latMin() || point[1] >= uvGrid->latMax()) {
+                  this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
+              } else {
+                  this->particlesBeached->SetValue(n, 0);
+                  this->points->SetPoint(n, point);
+                  modifiedData = true;
+              }
+          // In PartialSlip: beach if outside grid OR on land (shore distance < 1e-3)
+          } else if (this->boundaryType == BoundaryType::PartialSlip) {
+              double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
+              if (point[0] <= uvGrid->lonMin() || point[0] >= uvGrid->lonMax() ||
+                  point[1] <= uvGrid->latMin() || point[1] >= uvGrid->latMax() ||
+                  shoreDist < 1e-3) {
+                  this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
+              } else {
+                  this->particlesBeached->SetValue(n, 0);
                   this->points->SetPoint(n, point);
                   modifiedData = true;
               }
           }
+      }
+      
+      bool inCoastal = uvGrid->isNearShore(point[1], point[0], 5000.0);
+      if (inCoastal) {
+          if (coastalResidenceTimes.size() > static_cast<size_t>(n))
+              coastalResidenceTimes[n] += dtTotal;
+      } else if (coastalResidenceTimes.size() > static_cast<size_t>(n)) {
+          coastalResidenceTimes[n] = 0;
       }
     }
   }
@@ -335,23 +387,182 @@ void LagrangeGlyphs::printTrackedParticleInfo(const std::string& outputFilename)
 
     try {
         // Write header
-        outFile << "Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
+        outFile << "Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore,Beached\n";
         
         // Write data
         for (size_t i = 0; i < trackedPositions.size(); ++i) {
             const auto& pos = trackedPositions[i];
             const auto& vel = trackedVelocities[i];
+            double shoreDist = trackedDistancesToShore[i];
+            
+            // Calculate if particle is beached using the exact logic from DualBoundaryConditionKernel
+            bool isBeached = false;
+            const double buffer = 5000.0;       // metres
+            const double beachThresh = 200.0;   // metres
+            
+            if (uvGrid->isNearShore(pos.first, pos.second, buffer)) {
+                // Calculate shore gradient
+                const double delta = AdvectionKernel::metreToDegrees(100);
+                double gradLat = (uvGrid->getShoreDistance(pos.first + delta, pos.second) -
+                                uvGrid->getShoreDistance(pos.first - delta, pos.second)) /
+                               (2 * delta);
+                double gradLon = (uvGrid->getShoreDistance(pos.first, pos.second + delta) -
+                                uvGrid->getShoreDistance(pos.first, pos.second - delta)) /
+                               (2 * delta);
+                
+                // Calculate dot product
+                double dot = vel.first * gradLon + vel.second * gradLat;
+                
+                // A particle is beached if:
+                // 1. It is moving towards shore (dot < 0)
+                // 2. It is within 200m of shore
+                isBeached = (dot < 0) && (shoreDist < beachThresh);
+            }
+            
             outFile << i << ","
                     << pos.first << ","
                     << pos.second << ","
                     << vel.first << ","
                     << vel.second << ","
-                    << trackedDistancesToShore[i] << "\n";
+                    << shoreDist << ","
+                    << (isBeached ? "Yes" : "No") << "\n";
         }
         
         outFile.close();
         std::cout << "\nTrajectory data saved to: " << outputPath << std::endl;
         std::cout << "Run 'python plot_trajectory.py' to visualize the particle path on a map." << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error writing to file: " << e.what() << std::endl;
+        if (outFile.is_open()) {
+            outFile.close();
+        }
+    }
+}
+
+void LagrangeGlyphs::startTrackingAll() {
+    isTrackingAll = true;
+    isTracking = false;  // Disable single particle tracking
+    allParticlePositions.clear();
+    allParticleVelocities.clear();
+    allParticleDistancesToShore.clear();
+    
+    // Initialize vectors for each particle
+    size_t numParticles = points->GetNumberOfPoints();
+    allParticlePositions.resize(numParticles);
+    allParticleVelocities.resize(numParticles);
+    allParticleDistancesToShore.resize(numParticles);
+}
+
+void LagrangeGlyphs::stopTrackingAll() {
+    isTrackingAll = false;
+}
+
+void LagrangeGlyphs::printAllParticlesInfo(const std::string& outputFilename) const {
+    if (!isTrackingAll || allParticlePositions.empty()) {
+        std::cout << "No particles are being tracked or no data available." << std::endl;
+        return;
+    }
+
+    // Save to file
+    std::string outputPath = "C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/interactive-track-and-trace/particle-track-and-trace/" + outputFilename;
+    std::ofstream outFile(outputPath);
+    if (!outFile.is_open()) {
+        std::cerr << "Error: Could not open file for writing: " << outputPath << std::endl;
+        return;
+    }
+
+    try {
+        // Write header
+        outFile << "ParticleID,Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
+        
+        // Write data for each particle
+        for (size_t particleId = 0; particleId < allParticlePositions.size(); ++particleId) {
+            const auto& positions = allParticlePositions[particleId];
+            const auto& velocities = allParticleVelocities[particleId];
+            const auto& distances = allParticleDistancesToShore[particleId];
+            
+            for (size_t step = 0; step < positions.size(); ++step) {
+                const auto& pos = positions[step];
+                const auto& vel = velocities[step];
+                outFile << particleId << ","
+                        << step << ","
+                        << pos.first << ","
+                        << pos.second << ","
+                        << vel.first << ","
+                        << vel.second << ","
+                        << distances[step] << "\n";
+            }
+        }
+        
+        outFile.close();
+        std::cout << "\nAll particles trajectory data saved to: " << outputPath << std::endl;
+        std::cout << "Run 'python plot_trajectory.py' to visualize the particle paths on a map." << std::endl;
+    } catch (const std::exception& e) {
+        std::cerr << "Error writing to file: " << e.what() << std::endl;
+        if (outFile.is_open()) {
+            outFile.close();
+        }
+    }
+}
+
+void LagrangeGlyphs::startTrackingAll() {
+    isTrackingAll = true;
+    isTracking = false;  // Disable single particle tracking
+    allParticlePositions.clear();
+    allParticleVelocities.clear();
+    allParticleDistancesToShore.clear();
+    
+    // Initialize vectors for each particle
+    size_t numParticles = points->GetNumberOfPoints();
+    allParticlePositions.resize(numParticles);
+    allParticleVelocities.resize(numParticles);
+    allParticleDistancesToShore.resize(numParticles);
+}
+
+void LagrangeGlyphs::stopTrackingAll() {
+    isTrackingAll = false;
+}
+
+void LagrangeGlyphs::printAllParticlesInfo(const std::string& outputFilename) const {
+    if (!isTrackingAll || allParticlePositions.empty()) {
+        std::cout << "No particles are being tracked or no data available." << std::endl;
+        return;
+    }
+
+    // Save to file
+    std::string outputPath = "C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/interactive-track-and-trace/particle-track-and-trace/" + outputFilename;
+    std::ofstream outFile(outputPath);
+    if (!outFile.is_open()) {
+        std::cerr << "Error: Could not open file for writing: " << outputPath << std::endl;
+        return;
+    }
+
+    try {
+        // Write header
+        outFile << "ParticleID,Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
+        
+        // Write data for each particle
+        for (size_t particleId = 0; particleId < allParticlePositions.size(); ++particleId) {
+            const auto& positions = allParticlePositions[particleId];
+            const auto& velocities = allParticleVelocities[particleId];
+            const auto& distances = allParticleDistancesToShore[particleId];
+            
+            for (size_t step = 0; step < positions.size(); ++step) {
+                const auto& pos = positions[step];
+                const auto& vel = velocities[step];
+                outFile << particleId << ","
+                        << step << ","
+                        << pos.first << ","
+                        << pos.second << ","
+                        << vel.first << ","
+                        << vel.second << ","
+                        << distances[step] << "\n";
+            }
+        }
+        
+        outFile.close();
+        std::cout << "\nAll particles trajectory data saved to: " << outputPath << std::endl;
+        std::cout << "Run 'python plot_trajectory.py' to visualize the particle paths on a map." << std::endl;
     } catch (const std::exception& e) {
         std::cerr << "Error writing to file: " << e.what() << std::endl;
         if (outFile.is_open()) {

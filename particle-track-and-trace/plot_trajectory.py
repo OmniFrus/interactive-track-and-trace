@@ -6,7 +6,7 @@ import numpy as np
 import h5py
 
 # Read the trajectory data
-df = pd.read_csv('particle_trajectory.csv')
+df = pd.read_csv('single_particle_trajectory.csv')
 
 # Create a figure with two subplots
 fig = plt.figure(figsize=(15, 10))
@@ -63,6 +63,25 @@ lon_grid, lat_grid = np.meshgrid(lons, lats)
 # Overlay grid points on the map
 ax1.scatter(lon_grid, lat_grid, s=8, color='black', alpha=0.4, label='Grid Points', transform=ccrs.PlateCarree())
 
+
+# Overlay grid points from grid.h5 or shore_distance.h5
+grid_file = "../../data/grid.h5"  # or "shore_distance.h5" if you prefer
+with h5py.File(grid_file, "r") as f:
+    # Try both naming conventions
+    if "latitude" in f and "longitude" in f:
+        lats = f["latitude"][:]
+        lons = f["longitude"][:]
+    elif "lat" in f and "lon" in f:
+        lats = f["lat"][:]
+        lons = f["lon"][:]
+    else:
+        raise ValueError("No lat/lon found in file")
+
+# Create meshgrid for all grid points
+lon_grid, lat_grid = np.meshgrid(lons, lats)
+
+# Overlay grid points on the map
+ax1.scatter(lon_grid, lat_grid, s=8, color='black', alpha=0.4, label='Grid Points', transform=ccrs.PlateCarree())
 
 # Set the map extent to show the full trajectory with some padding
 lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
