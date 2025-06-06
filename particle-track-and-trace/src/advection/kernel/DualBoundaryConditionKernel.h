@@ -9,7 +9,7 @@
 /**
  * Implements a boundary handling strategy that only beaches particles
  * when they move landward into the coastline. A coastal buffer zone
- * of 5 km around land is used to evaluate the motion relative to the
+ * of 2 km around land is used to evaluate the motion relative to the
  * shoreline based on the gradient of the distance-to-shore field.
  */
 class DualBoundaryConditionKernel : public AdvectionKernel {
