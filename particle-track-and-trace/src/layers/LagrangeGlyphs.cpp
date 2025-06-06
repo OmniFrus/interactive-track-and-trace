@@ -129,7 +129,6 @@ void LagrangeGlyphs::spawnParticlesFromFile(const std::string& filename) {
             lat >= uvGrid->latMin() && lat <= uvGrid->latMax()) {
           this->points->InsertNextPoint(lon, lat, 0);
           this->particlesBeached->InsertNextValue(0);
-          this->initialSpawnPositions.push_back({lat, lon}); // Store the initial position
           this->coastalResidenceTimes.push_back(0);
         }
       } catch (const std::exception& e) {
@@ -143,8 +142,6 @@ void LagrangeGlyphs::spawnParticlesFromFile(const std::string& filename) {
     this->points->Modified();
     this->particlesBeached->Modified();
     std::cout << "Spawned " << this->points->GetNumberOfPoints() << " particles from file." << std::endl;
-    
-    // The initialization of allParticlePositions is now handled in startTrackingAll
   }
 }
 
@@ -188,11 +185,11 @@ void LagrangeGlyphs::updateData(int t) {
         if (isTracking && n == trackedParticleIndex && i == SUPERSAMPLINGRATE - 1) {
             trackedPositions.push_back({point[1], point[0]});
             
-            // Calculate velocity *at the new position* after advection
+            // Calculate velocity
             auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
             trackedVelocities.push_back({vel.u, vel.v});
 
-            // Use GEBCO-based distance to shore *at the new position* after advection
+            // Use GEBCO-based distance to shore
             double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
             trackedDistancesToShore.push_back(shoreDist);
         }
@@ -328,47 +325,10 @@ void LagrangeGlyphs::startTracking(size_t particleIndex) {
     trackedPositions.clear();
     trackedVelocities.clear();
     trackedDistancesToShore.clear();
-
-    // Add the initial spawn position as the first entry (Step 0)
-    if (particleIndex < initialSpawnPositions.size()) {
-        trackedPositions.push_back(initialSpawnPositions[particleIndex]);
-        // Add dummy velocity and distance to shore for step 0
-        trackedVelocities.push_back({0.0, 0.0}); // Assuming zero initial velocity
-        double initialShoreDist = uvGrid->getShoreDistance(initialSpawnPositions[particleIndex].first, initialSpawnPositions[particleIndex].second);
-        trackedDistancesToShore.push_back(initialShoreDist);
-    }
 }
 
 void LagrangeGlyphs::stopTracking() {
     isTracking = false;
-}
-
-void LagrangeGlyphs::startTrackingAll() {
-    isTrackingAll = true;
-    isTracking = false;  // Disable single particle tracking
-    allParticlePositions.clear();
-    allParticleVelocities.clear();
-    allParticleDistancesToShore.clear();
-    
-    // Initialize vectors for each particle with the initial spawn positions at step 0
-    size_t numParticles = initialSpawnPositions.size(); // Use size of initialSpawnPositions
-    if (numParticles == 0) return; // Nothing to track if no particles spawned
-
-    allParticlePositions.resize(numParticles);
-    allParticleVelocities.resize(numParticles);
-    allParticleDistancesToShore.resize(numParticles);
-    
-    for (size_t i = 0; i < numParticles; ++i) {
-        allParticlePositions[i].push_back(initialSpawnPositions[i]);
-        // Add dummy velocity and distance to shore for step 0
-        allParticleVelocities[i].push_back({0.0, 0.0}); // Assuming zero initial velocity
-        double initialShoreDist = uvGrid->getShoreDistance(initialSpawnPositions[i].first, initialSpawnPositions[i].second);
-        allParticleDistancesToShore[i].push_back(initialShoreDist);
-    }
-}
-
-void LagrangeGlyphs::stopTrackingAll() {
-    isTrackingAll = false;
 }
 
 void LagrangeGlyphs::printTrackedParticleInfo(const std::string& outputFilename) const {
@@ -486,120 +446,6 @@ void LagrangeGlyphs::printAllParticlesInfo(const std::string& outputFilename) co
                 const auto& vel = velocities[step];
                 outFile << particleId << ","
                         << step << ","
-                        << pos.first << ","
-                        << pos.second << ","
-                        << vel.first << ","
-                        << vel.second << ","
-                        << distances[step] << "\n";
-            }
-        }
-        
-        outFile.close();
-        std::cout << "\nAll particles trajectory data saved to: " << outputPath << std::endl;
-        std::cout << "Run 'python plot_trajectory.py' to visualize the particle paths on a map." << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Error writing to file: " << e.what() << std::endl;
-        if (outFile.is_open()) {
-            outFile.close();
-        }
-    }
-}
-
-void LagrangeGlyphs::startTrackingAll() {
-    isTrackingAll = true;
-    isTracking = false;  // Disable single particle tracking
-    allParticlePositions.clear();
-    allParticleVelocities.clear();
-    allParticleDistancesToShore.clear();
-    
-    // Initialize vectors for each particle
-    size_t numParticles = points->GetNumberOfPoints();
-    allParticlePositions.resize(numParticles);
-    allParticleVelocities.resize(numParticles);
-    allParticleDistancesToShore.resize(numParticles);
-}
-
-void LagrangeGlyphs::stopTrackingAll() {
-    isTrackingAll = false;
-}
-
-void LagrangeGlyphs::printAllParticlesInfo(const std::string& outputFilename) const {
-    if (!isTrackingAll || allParticlePositions.empty()) {
-        std::cout << "No particles are being tracked or no data available." << std::endl;
-        return;
-    }
-
-    // Save to file
-    std::string outputPath = "C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/interactive-track-and-trace/particle-track-and-trace/" + outputFilename;
-    std::ofstream outFile(outputPath);
-    if (!outFile.is_open()) {
-        std::cerr << "Error: Could not open file for writing: " << outputPath << std::endl;
-        return;
-    }
-
-    try {
-        // Write header
-        outFile << "ParticleID,Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
-        
-        // Write data for each particle
-        for (size_t particleId = 0; particleId < allParticlePositions.size(); ++particleId) {
-            const auto& positions = allParticlePositions[particleId];
-            const auto& velocities = allParticleVelocities[particleId];
-            const auto& distances = allParticleDistancesToShore[particleId];
-            
-            for (size_t step = 0; step < positions.size(); ++step) {
-                const auto& pos = positions[step];
-                const auto& vel = velocities[step];
-                outFile << particleId << ","
-                        << step << ","
-                        << pos.first << ","
-                        << pos.second << ","
-                        << vel.first << ","
-                        << vel.second << ","
-                        << distances[step] << "\n";
-            }
-        }
-        
-        outFile.close();
-        std::cout << "\nAll particles trajectory data saved to: " << outputPath << std::endl;
-        std::cout << "Run 'python plot_trajectory.py' to visualize the particle paths on a map." << std::endl;
-    } catch (const std::exception& e) {
-        std::cerr << "Error writing to file: " << e.what() << std::endl;
-        if (outFile.is_open()) {
-            outFile.close();
-        }
-    }
-}
-
-void LagrangeGlyphs::printAllParticlesInfo(const std::string& outputFilename) const {
-    if (!isTrackingAll || allParticlePositions.empty()) {
-        std::cout << "No particles are being tracked or no data available." << std::endl;
-        return;
-    }
-
-    // Save to file
-    std::string outputPath = "C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/interactive-track-and-trace/particle-track-and-trace/" + outputFilename;
-    std::ofstream outFile(outputPath);
-    if (!outFile.is_open()) {
-        std::cerr << "Error: Could not open file for writing: " << outputPath << std::endl;
-        return;
-    }
-
-    try {
-        // Write header
-        outFile << "ParticleID,Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
-        
-        // Write data for each particle, starting with the initial spawn position at Step 0
-        for (size_t particleId = 0; particleId < allParticlePositions.size(); ++particleId) {
-            const auto& positions = allParticlePositions[particleId];
-            const auto& velocities = allParticleVelocities[particleId];
-            const auto& distances = allParticleDistancesToShore[particleId];
-            
-            for (size_t step = 0; step < positions.size(); ++step) {
-                const auto& pos = positions[step];
-                const auto& vel = velocities[step];
-                outFile << particleId << ","
-                        << step << "," // Step index starts from 0 now
                         << pos.first << ","
                         << pos.second << ","
                         << vel.first << ","

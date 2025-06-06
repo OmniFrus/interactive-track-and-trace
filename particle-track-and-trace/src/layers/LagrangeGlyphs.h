@@ -86,11 +86,6 @@ private:
   std::vector<std::vector<double>> allParticleDistancesToShore;
   std::vector<int> coastalResidenceTimes;
   std::vector<int> dualConditionResidenceTimes;
-
-  // All particles tracking
-  std::vector<std::vector<std::pair<double, double>>> allParticlePositions;
-  std::vector<std::vector<std::pair<double, double>>> allParticleVelocities;
-  std::vector<std::vector<double>> allParticleDistancesToShore;
   std::vector<std::pair<double, double>> initialSpawnPositions; // Store initial positions
 
   /**

@@ -32,13 +32,13 @@ int main() {
 
   // Choose boundary handling here:
   // For Snap:
-  // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+   boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Partial Slip:
-   boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Free Slip:
   // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Dual Condition:
-   boundaryKernel = make_unique<DualBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // boundaryKernel = make_unique<DualBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
 
   cout << "Starting vtk..." << endl;
   auto program = make_shared<Program>(dt);
@@ -53,7 +53,7 @@ int main() {
   // litter->startTrackingAll();
 
   // If u only want to track a single particle, use this:
-   litter->startTracking(100);
+   litter->startTracking(101);
 
   // Create Euler glyphs for flow visualization
   auto euler = make_shared<EulerGlyphs>(uvGrid);
