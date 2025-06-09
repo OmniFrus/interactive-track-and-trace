@@ -18,7 +18,7 @@ UVGrid::UVGrid(string path) {
 
   tie(times, lats, lons) = readGrid(path);
   cout << "Reading shore distance data..." << endl;
-  tie(shoreDistances, shoreLats, shoreLons) = readShoreDistance(path);
+  tie(shoreDistances, shoreLats, shoreLons, landMask) = readShoreDistance(path);
   cout << "Finished reading all files." << endl;
 
   timeSize = times.size();
@@ -97,31 +97,14 @@ bool UVGrid::isNearShore(double lat, double lon, double threshold) const {
   return getShoreDistance(lat, lon) <= threshold;
 }
 
-std::pair<double, double> UVGrid::getShorelineTangent(double lat, double lon) const {
-    // Calculate gradient of shore distance to get normal vector
-    const double delta = 1e-6; // Small offset for numerical differentiation
-    
-    // Get distances at offset points
-    double d0 = getShoreDistance(lat, lon);
-    double dx = getShoreDistance(lat, lon + delta);
-    double dy = getShoreDistance(lat + delta, lon);
-    
-    // Calculate gradient components
-    double grad_x = (dx - d0) / delta;
-    double grad_y = (dy - d0) / delta;
-    
-    // Normalize gradient to get unit normal vector
-    double norm = std::sqrt(grad_x * grad_x + grad_y * grad_y);
-    if (norm < 1e-10) {
-        // If gradient is too small, return default tangent (eastward)
-        return {1.0, 0.0};
+bool UVGrid::isLand(double lat, double lon) const {
+    int latIndex = static_cast<int>((lat - latMin()) / latStep());
+    int lonIndex = static_cast<int>((lon - lonMin()) / lonStep());
+
+    if (latIndex < 0 || latIndex >= latSize || lonIndex < 0 || lonIndex >= lonSize) {
+        return false;
     }
-    
-    // Normal vector is normalized gradient
-    double nx = grad_x / norm;
-    double ny = grad_y / norm;
-    
-    // Tangent is perpendicular to normal (rotate 90 degrees)
-    // For a normal vector (nx, ny), the tangent is (-ny, nx)
-    return {-ny, nx};
+
+    size_t index = latIndex * lonSize + lonIndex;
+    return landMask[index] == 1;
 }

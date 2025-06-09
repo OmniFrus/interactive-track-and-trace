@@ -61,8 +61,8 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
             double v_t = vel.u * tangent_x + vel.v * tangent_y; // Tangential component
 
             // Calculate slip velocity:
-            // - Normal component is reduced by (1-slipRatio)
-            // - Tangential component remains full
+            // Normal component is reduced by (1-slipRatio)
+            // Tangential component remains full
             double slip_u = (1.0 - slipRatio) * v_n * normal_x + v_t * tangent_x;
             double slip_v = (1.0 - slipRatio) * v_n * normal_y + v_t * tangent_y;
             

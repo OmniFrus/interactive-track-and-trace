@@ -11,6 +11,7 @@
 #include "advection/kernel/FreeSlipBoundaryConditionKernel.h"
 #include "advection/kernel/PartialSlipBoundaryConditionKernel.h"
 #include "advection/kernel/DualBoundaryConditionKernel.h"
+#include "advection/kernel/parcels3_freeslip.h"
 
 #include <vtkPolyDataMapper2D.h>
 #include <vtkProperty2D.h>
@@ -30,53 +31,86 @@ int main() {
   auto kernelRK4 = make_unique<RK4AdvectionKernel>(uvGrid);
   unique_ptr<AdvectionKernel> boundaryKernel;
 
-  // Choose boundary handling here:
+  // Choose boundary condition here:
   // For Snap:
-   boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Partial Slip:
   // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Free Slip:
   // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Dual Condition:
   // boundaryKernel = make_unique<DualBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // For parcels3_freeslip
+  boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
+  cout << "Created boundaryKernel successfully." << endl;
 
   cout << "Starting vtk..." << endl;
   auto program = make_shared<Program>(dt);
+  cout << "Created Program." << endl;
+  
   auto timer = make_shared<Timer>(program, dt);
+  cout << "Created Timer." << endl;
+  
   auto camera = make_shared<Camera>();
+  cout << "Created Camera." << endl;
 
   // Create and configure litter particles with spawn locations from CSV
   auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(boundaryKernel), dataPath + "/spawn_locations.csv");
+  cout << "Created LagrangeGlyphs successfully." << endl;
+  
   litter->setToDiamond();
+  
+  // Choose beaching conditions here:
+  // litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
+  // litter->setBeachingType(LagrangeGlyphs::BeachingType::DistanceBased);    // Based on distance to shore
+  // litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased); // Based on direction and distance
+  litter->setBeachingType(LagrangeGlyphs::BeachingType::None);              // No beaching (only out of bounds is considered beached)
+
+  // Enable/disable directional check for DirectionalBased beaching
+  litter->setEnableDirectionalCheck(true);
 
   // If u want to track all particles, use this:
-  // litter->startTrackingAll();
+   litter->startTrackingAll();
 
   // If u only want to track a single particle, use this:
-   litter->startTracking(101);
+  // litter->startTracking(100);
 
   // Create Euler glyphs for flow visualization
   auto euler = make_shared<EulerGlyphs>(uvGrid);
+  cout << "Created EulerGlyphs successfully." << endl;
 
   // Create day counter
   auto dayCounter = make_shared<DayCounter>();
+  cout << "Created DayCounter successfully." << endl;
 
   // Add layers to program in correct order
   program->addLayer(timer);
+  cout << "Added Timer layer." << endl;
+  
   program->addLayer(make_shared<BackgroundImage>(dataPath + "/northsea.png"));
+  cout << "Added BackgroundImage layer." << endl;
+  
   program->addLayer(euler);  // Add Euler glyphs before litter
+  cout << "Added EulerGlyphs layer." << endl;
+  
   program->addLayer(litter);
+  cout << "Added LagrangeGlyphs layer." << endl;
+  
   program->addLayer(camera);
+  cout << "Added Camera layer." << endl;
+  
   program->addLayer(dayCounter);
+  cout << "Added DayCounter layer." << endl;
 
+  cout << "Starting render..." << endl;
   program->render();
+  cout << "Render completed." << endl;
 
   // Print all tracked particle information after simulation
-  // litter->printAllParticlesInfo("all_particles_trajectory.csv");
+   litter->printAllParticlesInfo("all_particles_trajectory.csv");
 
   //if u only want to track a single particle, use this:
-   litter->printTrackedParticleInfo("single_particle_trajectory.csv");
-
+  // litter->printTrackedParticleInfo("single_particle_trajectory.csv");
 
   return EXIT_SUCCESS;
 }

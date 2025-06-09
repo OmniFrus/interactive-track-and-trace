@@ -2,6 +2,7 @@
 #define UVGRID_H
 
 #include <vector>
+#include <iostream>
 #include "Vel.h"
 
 class UVGrid {
@@ -25,6 +26,7 @@ private:
    */
   std::vector<double> shoreLats;
   std::vector<double> shoreLons;
+  std::vector<uint8_t> landMask;
 
 public:
   /**
@@ -98,6 +100,7 @@ public:
   std::vector<int> times;
   std::vector<double> lats;
   std::vector<double> lons;
+  
 
   /**
    * The 3D index into the data. The array is sized by [8761][67][116]
@@ -129,14 +132,8 @@ public:
    */
   bool isNearShore(double lat, double lon, double threshold) const;
 
-  /**
-   * Returns the shoreline tangent vector at the given lat/lon point
-   * The tangent vector points along the shoreline, with magnitude 1
-   * @param lat latitude
-   * @param lon longitude
-   * @return pair of (tangent_x, tangent_y) components
-   */
-  std::pair<double, double> getShorelineTangent(double lat, double lon) const;
+  bool isLand(double lat, double lon) const;
+  
 };
 
 #endif //UVGRID_H

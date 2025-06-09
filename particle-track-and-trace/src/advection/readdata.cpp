@@ -29,11 +29,7 @@ vector<double> readHydrodynamicU(string path) {
 
   multimap<string, NcVar> vars = data.getVars();
 
-  auto it = vars.find("vo");
-  if (it == vars.end()) {
-      throw std::runtime_error("'vo' not found in hydrodynamic_U.h5");
-  }
-  return getVarVector<double>(it->second);
+  return getVarVector<double>(vars.find("vo")->second);
 }
 
 vector<double> readHydrodynamicV(string path) {
@@ -58,7 +54,7 @@ tuple<vector<int>, vector<double>, vector<double>> readGrid(string path) {
   return {time, latitude, longitude};
 }
 
-tuple<vector<double>, vector<double>, vector<double>> readShoreDistance(string path) {
+tuple<vector<double>, vector<double>, vector<double>, vector<uint8_t>> readShoreDistance(string path) {
   string fileName = "shore_distance.h5";
   cout << "Opening " << path + '/' + fileName << endl;
   netCDF::NcFile data(path + '/' + fileName, netCDF::NcFile::read);
@@ -71,6 +67,7 @@ tuple<vector<double>, vector<double>, vector<double>> readShoreDistance(string p
   vector<double> distances = getVarVector<double>(it->second);
   vector<double> latitude = getVarVector<double>(vars.find("lat")->second);
   vector<double> longitude = getVarVector<double>(vars.find("lon")->second);
+  vector<uint8_t> mask = getVarVector<uint8_t>(vars.find("mask")->second);
 
-  return {distances, latitude, longitude};
+  return {distances, latitude, longitude, mask};
 }

@@ -46,3 +46,7 @@ cmake --build build --config Release
 ```
 Then run C:\Users\wesle\Documents\Universiteit\2024_2025\Thesis\Opdracht\interactive-track-and-trace\particle-track-and-trace\src\build\Release\ParticleTrackTrace.exe from the file explorer.
 
+
+We can make changes to our simulation in the main.cpp file, where we can choose which boundary condition we want to run and which beaching condition we want to use.
+Furthermore, we can run a python script which gives us all the statistics of what was ran before. This could be for a particle in particular or all at once.
+

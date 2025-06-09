@@ -19,6 +19,13 @@
  */
 class LagrangeGlyphs : public Layer {
 public:
+  enum class BeachingType {
+    VelocityBased,    // Original snap boundary logic
+    DistanceBased,    // Based on distance to shore
+    DirectionalBased, // Based on direction and distance
+    None             // No beaching (like FreeSlip)
+  };
+
   /**
    * Constructor.
    * @param uvGrid UVGrid used for boundary conditions calculations
@@ -49,6 +56,10 @@ public:
 
   void handleGameOver() override;
 
+  // Directional check control
+  void setEnableDirectionalCheck(bool enabled);
+
+
   // Tracking methods
   void startTracking(size_t particleIndex);
   void stopTracking();
@@ -60,6 +71,9 @@ public:
   const std::vector<std::pair<double, double>>& getTrackedVelocities() const { return trackedVelocities; }
   const std::vector<double>& getTrackedDistancesToShore() const { return trackedDistancesToShore; }
   const std::vector<int>& getCoastalResidenceTimes() const { return coastalResidenceTimes; }
+
+  // Add new method to set beaching type
+  void setBeachingType(BeachingType type) { beachingType = type; }
 
 private:
   vtkNew<vtkPoints> points;
@@ -87,6 +101,9 @@ private:
   std::vector<int> coastalResidenceTimes;
   std::vector<int> dualConditionResidenceTimes;
   std::vector<std::pair<double, double>> initialSpawnPositions; // Store initial positions
+  bool enableDirectionalCheck = true; // Direction check for beaching, 
+
+  BeachingType beachingType = BeachingType::VelocityBased; // Default to velocity based
 
   /**
    * Load spawn locations from CSV file and create particles
