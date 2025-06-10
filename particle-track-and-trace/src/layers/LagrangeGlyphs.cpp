@@ -248,11 +248,10 @@ void LagrangeGlyphs::updateData(int t)
                 case BeachingType::DirectionalBased:
                     {
                         const double bufferDistance = 2000.0;     // 2 km bufferzone
-                        const double directionalityDistance = 200.0; // within 200m check direction
                         double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
                         bool inBuffer = shoreDist < bufferDistance;
 
-                        if (inBuffer && enableDirectionalCheck && shoreDist < directionalityDistance)
+                        if (inBuffer && enableDirectionalCheck)
                         {
                             // Calculate shore gradient
                             const double delta = AdvectionKernel::metreToDegrees(100);
@@ -265,12 +264,14 @@ void LagrangeGlyphs::updateData(int t)
                             auto vel = bilinearinterpolate(*uvGrid, t, oldY, oldX);
                             double dot = vel.u * gradLon + vel.v * gradLat;
 
-                            if (dot < 0) // Moving towards shore
+                            if (dot < 0  && coastalResidenceTimes[n] >= coastalTimeThreshold) // Moving towards shore
                             {
                                 this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
                             }
                             else
                             {
+                                if (dot >= 0)
+                                    coastalResidenceTimes[n] = 0;
                                 this->particlesBeached->SetValue(n, 0);
                                 this->points->SetPoint(n, point);
                                 modifiedData = true;
@@ -278,6 +279,8 @@ void LagrangeGlyphs::updateData(int t)
                         }
                         else
                         {
+                            if (!inBuffer)
+                                coastalResidenceTimes[n] = 0;
                             this->particlesBeached->SetValue(n, 0);
                             this->points->SetPoint(n, point);
                             modifiedData = true;
@@ -369,6 +372,10 @@ void LagrangeGlyphs::stopTracking()
 
 void LagrangeGlyphs::setEnableDirectionalCheck(bool enabled) {
     enableDirectionalCheck = enabled;
+}
+
+void LagrangeGlyphs::setCoastalTimeThreshold(double hours) {
+    coastalTimeThreshold = static_cast<int>(hours * 3600.0);
 }
 
 void LagrangeGlyphs::printTrackedParticleInfo(const std::string &outputFilename) const
