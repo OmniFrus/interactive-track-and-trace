@@ -108,3 +108,35 @@ bool UVGrid::isLand(double lat, double lon) const {
     size_t index = latIndex * lonSize + lonIndex;
     return landMask[index] == 1;
 }
+
+int UVGrid::getColumnIndex(double lon) const {
+    return static_cast<int>((lon - lonMin()) / lonStep());
+}
+
+int UVGrid::getRowIndex(double lat) const {
+    return static_cast<int>((lat - latMin()) / latStep());
+}
+
+double UVGrid::getLon(int i) const {
+    return lonMin() + i * lonStep();
+}
+
+double UVGrid::getLat(int j) const {
+    return latMin() + j * latStep();
+}
+
+int UVGrid::nx() const {
+    return lonSize;
+}
+
+int UVGrid::ny() const {
+    return latSize;
+}
+
+double UVGrid::dx() const {
+    return lonStep();
+}
+
+double UVGrid::dy() const {
+    return latStep();
+}

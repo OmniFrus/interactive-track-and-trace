@@ -3,12 +3,6 @@
 #include <cmath>
 #include <algorithm>
 
-// Implements a free-slip boundary condition where particles can move freely along the coast
-// but cannot move into the land. This is achieved by:
-// 1. Projecting the velocity onto the shoreline tangent
-// 2. Only allowing movement along the tangent direction
-// 3. Using a 2km buffer zone around the coast
-
 FreeSlipBoundaryConditionKernel::FreeSlipBoundaryConditionKernel(
     std::unique_ptr<AdvectionKernel> baseKernel,
     std::shared_ptr<UVGrid> grid)
@@ -16,68 +10,55 @@ FreeSlipBoundaryConditionKernel::FreeSlipBoundaryConditionKernel(
     , grid(std::move(grid)) {}
 
 std::pair<double, double> FreeSlipBoundaryConditionKernel::advect(int time, double latitude, double longitude, int dt) const {
-    // Get the velocity at the current position using bilinear interpolation
+    auto [newLat, newLon] = baseKernel->advect(time, latitude, longitude, dt);
+    const double epsilon = 1e-5;
+    const double shoreThreshold = 2000.0; // 2km
+    const double minVelocity = 1e-4;
+    const double maxVelocity = 3.0;
+    const double minCoord = 0.05;
+
     auto vel = bilinearinterpolate(*grid, time, latitude, longitude);
 
-    // Constants for boundary condition calculations
-    const double epsilon = 1e-5;          // Small value to prevent particles from exactly hitting boundaries
-    const double shoreThreshold = 2000.0; // 2km buffer zone around the coast
-    const double minVelocity = 1e-4;      // Minimum velocity threshold
-    const double maxVelocity = 3.0;       // Maximum velocity threshold
-    const double minCoord = 0.05;         // Minimum coordinate value
+    if (grid->isNearShore(latitude, longitude, shoreThreshold)) {
+        double xi = (longitude - grid->lonMin()) / grid->lonStep();
+        xi = std::clamp(xi - std::floor(xi), minCoord, 1.0 - minCoord);
+        double eta = (latitude - grid->latMin()) / grid->latStep();
+        eta = std::clamp(eta - std::floor(eta), minCoord, 1.0 - minCoord);
 
-    // Initialize new position with current position
-    double newLat = latitude;
-    double newLon = longitude;
-    
-    // Get distance to shore at current position
-    double shoreDist = grid->getShoreDistance(latitude, longitude);
-    
-    // Only apply boundary conditions if we're within the shore buffer zone
-    if (shoreDist < shoreThreshold) {
-        // Calculate gradient of shore distance to determine normal and tangential directions
-        double delta = 1e-4; // Small increment in degrees for numerical gradient
-        double gradLat = (grid->getShoreDistance(latitude + delta, longitude) - 
-                         grid->getShoreDistance(latitude - delta, longitude)) / (2 * delta);
-        double gradLon = (grid->getShoreDistance(latitude, longitude + delta) - 
-                         grid->getShoreDistance(latitude, longitude - delta)) / (2 * delta);
-        
-        // Calculate norm of gradient vector for normalization
-        double norm = std::sqrt(gradLat * gradLat + gradLon * gradLon);
-        
-        // Only proceed if gradient is significant enough
-        if (norm >= 1e-8) {
-            // Calculate unit normal vector (pointing away from shore)
-            double normal_x = gradLon / norm;
-            double normal_y = gradLat / norm;
-            
-            // Calculate unit tangent vector (perpendicular to normal)
-            double tangent_x = -normal_y;
-            double tangent_y = normal_x;
-            
-            // Project velocity onto tangent direction only (free-slip)
-            double v_t = vel.u * tangent_x + vel.v * tangent_y;
-            
-            // Calculate slip velocity (only tangential component)
-            double slip_u = v_t * tangent_x;
-            double slip_v = v_t * tangent_y;
-            
-            // Update position using slip velocity
-            newLon = longitude + metreToDegrees(slip_u * dt);
-            newLat = latitude + metreToDegrees(slip_v * dt);
-            
-            // Ensure particle stays within grid boundaries
-            newLat = std::clamp(newLat, grid->latMin() + epsilon, grid->latMax() - epsilon);
-            newLon = std::clamp(newLon, grid->lonMin() + epsilon, grid->lonMax() - epsilon);
+        double distToWest  = std::abs(newLon - grid->lonMin());
+        double distToEast  = std::abs(newLon - grid->lonMax());
+        double distToSouth = std::abs(newLat - grid->latMin());
+        double distToNorth = std::abs(newLat - grid->latMax());
 
-            return {newLat, newLon};
+        if (distToWest <= distToEast && distToWest <= distToSouth && distToWest <= distToNorth) {
+            vel.u = 0;
+            vel.v *= 1.0 / xi;
+        } else if (distToEast <= distToSouth && distToEast <= distToNorth) {
+            vel.u = 0;
+            vel.v *= 1.0 / (1.0 - xi);
+        } else if (distToSouth <= distToNorth) {
+            vel.v = 0;
+            vel.u *= 1.0 / eta;
         } else {
-            // If gradient is too small, prevent movement
-            return {latitude, longitude};
+            vel.v = 0;
+            vel.u *= 1.0 / (1.0 - eta);
         }
+
+        vel.u = std::clamp(vel.u, -maxVelocity, maxVelocity);
+        vel.v = std::clamp(vel.v, -maxVelocity, maxVelocity);
+
+        newLon = longitude + metreToDegrees(vel.u * dt);
+        newLat = latitude + metreToDegrees(vel.v * dt);
+
+        newLat = std::clamp(newLat, grid->latMin() + epsilon, grid->latMax() - epsilon);
+        newLon = std::clamp(newLon, grid->lonMin() + epsilon, grid->lonMax() - epsilon);
     }
 
-    // If not near shore, use normal advection
-    auto advected = baseKernel->advect(time, latitude, longitude, dt);
-    return advected;
+    // Reject motion into coast
+    double newShoreDist = grid->getShoreDistance(newLat, newLon);
+    if (newShoreDist < 200.0) {  // Within 100m of land
+        return {latitude, longitude};  // Stay in current location
+    }
+
+    return {newLat, newLon};
 }

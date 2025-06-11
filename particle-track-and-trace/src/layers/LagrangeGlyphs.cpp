@@ -25,8 +25,7 @@
 #include "../advection/kernel/SnapBoundaryConditionKernel.h"
 #include "../advection/kernel/FreeSlipBoundaryConditionKernel.h"
 #include "../advection/kernel/PartialSlipBoundaryConditionKernel.h"
-#include "../advection/kernel/DualBoundaryConditionKernel.h"
-#include "../advection/kernel/parcels3_freeslip.h"
+#include "../advection/kernel/ParcelsBoundaryConditionKernel.h"
 #include <cmath>
 #include <algorithm>
 #include <limits>
@@ -186,7 +185,7 @@ void LagrangeGlyphs::updateData(int t)
                 std::tie(point[1], point[0]) = advector->advect(t, point[1], point[0], dt);
 
                 // Track particle if enabled
-                if (isTracking && n == trackedParticleIndex && i == SUPERSAMPLINGRATE - 1)
+                if (trackingEnabled && n == trackedParticleIndex && i == SUPERSAMPLINGRATE - 1)
                 {
                     trackedPositions.push_back({point[1], point[0]});
 
@@ -200,7 +199,7 @@ void LagrangeGlyphs::updateData(int t)
                 }
 
                 // Track all particles if enabled
-                if (isTrackingAll && i == SUPERSAMPLINGRATE - 1)
+                if (trackingAllEnabled && i == SUPERSAMPLINGRATE - 1)
                 {
                     allParticlePositions[n].push_back({point[1], point[0]});
 
@@ -355,7 +354,7 @@ void LagrangeGlyphs::handleGameOver()
 
 void LagrangeGlyphs::startTracking(size_t particleIndex)
 {
-    isTracking = true;
+    trackingEnabled = true;
     trackedParticleIndex = particleIndex;
     trackedPositions.clear();
     trackedVelocities.clear();
@@ -364,7 +363,7 @@ void LagrangeGlyphs::startTracking(size_t particleIndex)
 
 void LagrangeGlyphs::stopTracking()
 {
-    isTracking = false;
+    trackingEnabled = false;
 }
 
 void LagrangeGlyphs::setEnableDirectionalCheck(bool enabled) {
@@ -373,7 +372,7 @@ void LagrangeGlyphs::setEnableDirectionalCheck(bool enabled) {
 
 void LagrangeGlyphs::printTrackedParticleInfo(const std::string &outputFilename) const
 {
-    if (!isTracking || trackedPositions.empty())
+    if (!trackingEnabled || trackedPositions.empty())
     {
         std::cout << "No particle is being tracked or no data available." << std::endl;
         return;
@@ -450,8 +449,7 @@ void LagrangeGlyphs::printTrackedParticleInfo(const std::string &outputFilename)
 
 void LagrangeGlyphs::startTrackingAll()
 {
-    isTrackingAll = true;
-    isTracking = false; // Disable single particle tracking
+    trackingAllEnabled = true;
     allParticlePositions.clear();
     allParticleVelocities.clear();
     allParticleDistancesToShore.clear();
@@ -465,12 +463,12 @@ void LagrangeGlyphs::startTrackingAll()
 
 void LagrangeGlyphs::stopTrackingAll()
 {
-    isTrackingAll = false;
+    trackingAllEnabled = false;
 }
 
 void LagrangeGlyphs::printAllParticlesInfo(const std::string &outputFilename) const
 {
-    if (!isTrackingAll || allParticlePositions.empty())
+    if (!trackingAllEnabled || allParticlePositions.empty())
     {
         std::cout << "No particles are being tracked or no data available." << std::endl;
         return;

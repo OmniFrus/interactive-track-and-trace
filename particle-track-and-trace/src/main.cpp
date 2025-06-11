@@ -10,8 +10,7 @@
 #include "advection/kernel/SnapBoundaryConditionKernel.h"
 #include "advection/kernel/FreeSlipBoundaryConditionKernel.h"
 #include "advection/kernel/PartialSlipBoundaryConditionKernel.h"
-#include "advection/kernel/DualBoundaryConditionKernel.h"
-#include "advection/kernel/parcels3_freeslip.h"
+#include "advection/kernel/ParcelsBoundaryConditionKernel.h"
 
 #include <vtkPolyDataMapper2D.h>
 #include <vtkProperty2D.h>
@@ -33,15 +32,13 @@ int main() {
 
   // Choose boundary condition here:
   // For Snap:
-  // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+   boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Partial Slip:
   // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Free Slip:
   // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
-  // For Dual Condition:
-  // boundaryKernel = make_unique<DualBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
-  // For parcels3_freeslip
-  boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
+  // For Parcels Slip:
+  // boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
   cout << "Created boundaryKernel successfully." << endl;
 
   cout << "Starting vtk..." << endl;
@@ -61,10 +58,10 @@ int main() {
   litter->setToDiamond();
   
   // Choose beaching conditions here:
-  // litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
+   litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::DistanceBased);    // Based on distance to shore
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased); // Based on direction and distance
-  litter->setBeachingType(LagrangeGlyphs::BeachingType::None);              // No beaching (only out of bounds is considered beached)
+  // litter->setBeachingType(LagrangeGlyphs::BeachingType::None);              // No beaching (only out of bounds is considered beached)
 
   // Enable/disable directional check for DirectionalBased beaching
   litter->setEnableDirectionalCheck(true);
@@ -73,7 +70,7 @@ int main() {
    litter->startTrackingAll();
 
   // If u only want to track a single particle, use this:
-  // litter->startTracking(100);
+   litter->startTracking(100);
 
   // Create Euler glyphs for flow visualization
   auto euler = make_shared<EulerGlyphs>(uvGrid);
@@ -106,11 +103,13 @@ int main() {
   program->render();
   cout << "Render completed." << endl;
 
-  // Print all tracked particle information after simulation
-   litter->printAllParticlesInfo("all_particles_trajectory.csv");
-
-  //if u only want to track a single particle, use this:
-  // litter->printTrackedParticleInfo("single_particle_trajectory.csv");
+  // Automatically print tracking information based on active tracking mode
+  if (litter->isTrackingAll()) {
+    litter->printAllParticlesInfo("all_particles_trajectory.csv");
+  }
+  if (litter->isTracking()) {
+    litter->printTrackedParticleInfo("single_particle_trajectory.csv");
+  }
 
   return EXIT_SUCCESS;
 }

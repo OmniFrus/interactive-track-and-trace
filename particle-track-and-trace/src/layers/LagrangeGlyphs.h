@@ -72,6 +72,10 @@ public:
   const std::vector<double>& getTrackedDistancesToShore() const { return trackedDistancesToShore; }
   const std::vector<int>& getCoastalResidenceTimes() const { return coastalResidenceTimes; }
 
+  // Add getter methods for tracking status
+  bool isTracking() const { return trackingEnabled; }
+  bool isTrackingAll() const { return trackingAllEnabled; }
+
   // Add new method to set beaching type
   void setBeachingType(BeachingType type) { beachingType = type; }
 
@@ -87,8 +91,8 @@ private:
   int beachedAtNumberOfTimes = 50;
 
   // Tracking variables
-  bool isTracking = false;
-  bool isTrackingAll = false;
+  bool trackingEnabled = false;
+  bool trackingAllEnabled = false;
   size_t trackedParticleIndex = 0;
   std::vector<std::pair<double, double>> trackedPositions;
   std::vector<std::pair<double, double>> trackedVelocities;

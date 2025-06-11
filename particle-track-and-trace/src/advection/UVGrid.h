@@ -133,6 +133,18 @@ public:
   bool isNearShore(double lat, double lon, double threshold) const;
 
   bool isLand(double lat, double lon) const;
+
+  int getColumnIndex(double lon) const;
+  int getRowIndex(double lat) const;
+
+  double getLon(int i) const;
+  double getLat(int j) const;
+
+  int nx() const;
+  int ny() const;
+
+  double dx() const;
+  double dy() const;
   
 };
 
