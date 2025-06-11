@@ -76,6 +76,9 @@ public:
   bool isTracking() const { return trackingEnabled; }
   bool isTrackingAll() const { return trackingAllEnabled; }
 
+  // Set the minimum coastal residence time (in hours) required for beaching
+  void setCoastalTimeThreshold(double hours);
+
   // Add new method to set beaching type
   void setBeachingType(BeachingType type) { beachingType = type; }
 
@@ -104,8 +107,9 @@ private:
   std::vector<std::vector<double>> allParticleDistancesToShore;
   std::vector<int> coastalResidenceTimes;
   std::vector<int> dualConditionResidenceTimes;
+  int coastalTimeThreshold = 6 * 3600; // minimum seconds in coastal buffer before beaching
   std::vector<std::pair<double, double>> initialSpawnPositions; // Store initial positions
-  bool enableDirectionalCheck = true; // Direction check for beaching, 
+  bool enableDirectionalCheck = true; // Direction check for beaching
 
   BeachingType beachingType = BeachingType::VelocityBased; // Default to velocity based
 
