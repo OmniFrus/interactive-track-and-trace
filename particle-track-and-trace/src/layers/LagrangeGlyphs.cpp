@@ -147,22 +147,16 @@ void LagrangeGlyphs::updateData(int t)
     double point[3], oldX, oldY;
     bool modifiedData = false;
     int dtTotal = t - this->lastT;
-    if (dtTotal < 0)
-        dtTotal = t;
+    if (dtTotal < 0) dtTotal = t;
 
-    // iterate over every point.
-    for (vtkIdType n = 0; n < this->points->GetNumberOfPoints(); n++)
-    {
+    for (vtkIdType n = 0; n < this->points->GetNumberOfPoints(); n++) {
         int beachedFor = this->particlesBeached->GetValue(n);
-        // first check: only update non-beached particles.
-        if (beachedFor < this->beachedAtNumberOfTimes)
-        {
+
+        if (beachedFor < this->beachedAtNumberOfTimes) {
             this->points->GetPoint(n, point);
-            // second check: only update points within our grid's boundary.
+
             if (point[0] <= this->uvGrid->lonMin() || point[0] >= this->uvGrid->lonMax() ||
-                point[1] <= this->uvGrid->latMin() || point[1] >= this->uvGrid->latMax())
-            {
-                // sets any particle out of bounds to be beached - so it gets assigned the right colour in the lookup table.
+                point[1] <= this->uvGrid->latMin() || point[1] >= this->uvGrid->latMax()) {
                 this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
                 continue;
             }
@@ -170,132 +164,72 @@ void LagrangeGlyphs::updateData(int t)
             oldX = point[0];
             oldY = point[1];
 
-            // supersampling
-            for (int i = 0; i < SUPERSAMPLINGRATE; i++)
-            {
+            for (int i = 0; i < SUPERSAMPLINGRATE; i++) {
                 int dt = (t - this->lastT) / SUPERSAMPLINGRATE;
-                if (dt < 0)
-                {
-                    // TODO: This is a hack for when the t wraps around,
-                    // there is probably a more elegant way of dealing with this whole thing
-                    // that involves having two separate DTs.
-                    // One for the "render" step time, and one for the computation step time.
-                    dt = t;
-                }
+                if (dt < 0) dt = t;
+
                 std::tie(point[1], point[0]) = advector->advect(t, point[1], point[0], dt);
-
-                // Track particle if enabled
-                if (trackingEnabled && n == trackedParticleIndex && i == SUPERSAMPLINGRATE - 1)
-                {
-                    trackedPositions.push_back({point[1], point[0]});
-
-                    // Calculate velocity
-                    auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
-                    trackedVelocities.push_back({vel.u, vel.v});
-
-                    // Use GEBCO-based distance to shore
-                    double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
-                    trackedDistancesToShore.push_back(shoreDist);
-                }
-
-                // Track all particles if enabled
-                if (trackingAllEnabled && i == SUPERSAMPLINGRATE - 1)
-                {
-                    allParticlePositions[n].push_back({point[1], point[0]});
-
-                    // Calculate velocity
-                    auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
-                    allParticleVelocities[n].push_back({vel.u, vel.v});
-
-                    // Use GEBCO-based distance to shore
-                    double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
-                    allParticleDistancesToShore[n].push_back(shoreDist);
-                }
             }
 
-            // Apply beaching logic based on selected type
             switch (beachingType) {
                 case BeachingType::VelocityBased:
-                    if (isNearestNeighbourZero(*uvGrid, t, point[1], point[0]))
-                    {
+                    if (isNearestNeighbourZero(*uvGrid, t, point[1], point[0])) {
                         this->particlesBeached->SetValue(n, beachedFor + 1);
-                    }
-                    else
-                    {
+                    } else {
                         this->particlesBeached->SetValue(n, std::max(beachedFor - 1, 0));
                         this->points->SetPoint(n, point);
                         modifiedData = true;
                     }
                     break;
 
-                case BeachingType::DistanceBased:
-                    {
-                        double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
-                        if (shoreDist < 1e-4)
-                        {
+                case BeachingType::DistanceBased: {
+                    double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
+                    if (shoreDist < 1e-4) {
+                        this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
+                    } else {
+                        this->particlesBeached->SetValue(n, 0);
+                        this->points->SetPoint(n, point);
+                        modifiedData = true;
+                    }
+                    break;
+                }
+
+                case BeachingType::DirectionalBased: {
+                    const double bufferDistance = 2000.0;
+                    double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
+                    bool inBuffer = shoreDist < bufferDistance;
+
+                    if (inBuffer && enableDirectionalCheck) {
+                        const double delta = AdvectionKernel::metreToDegrees(100);
+                        double gradLat = (uvGrid->getShoreDistance(oldY + delta, oldX) -
+                                          uvGrid->getShoreDistance(oldY - delta, oldX)) / (2 * delta);
+                        double gradLon = (uvGrid->getShoreDistance(oldY, oldX + delta) -
+                                          uvGrid->getShoreDistance(oldY, oldX - delta)) / (2 * delta);
+                        auto vel = bilinearinterpolate(*uvGrid, t, oldY, oldX);
+                        double dot = vel.u * gradLon + vel.v * gradLat;
+
+                        if (dot < 0 && coastalResidenceTimes[n] >= coastalTimeThreshold) {
                             this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
-                        }
-                        else
-                        {
+                        } else {
+                            if (dot >= 0) coastalResidenceTimes[n] = 0;
                             this->particlesBeached->SetValue(n, 0);
                             this->points->SetPoint(n, point);
                             modifiedData = true;
                         }
+                    } else {
+                        if (!inBuffer) coastalResidenceTimes[n] = 0;
+                        this->particlesBeached->SetValue(n, 0);
+                        this->points->SetPoint(n, point);
+                        modifiedData = true;
                     }
                     break;
-
-                case BeachingType::DirectionalBased:
-                    {
-                        const double bufferDistance = 2000.0;     // 2 km bufferzone
-                        double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
-                        bool inBuffer = shoreDist < bufferDistance;
-
-                        if (inBuffer && enableDirectionalCheck)
-                        {
-                            // Calculate shore gradient
-                            const double delta = AdvectionKernel::metreToDegrees(100);
-                            double gradLat = (uvGrid->getShoreDistance(oldY + delta, oldX) -
-                                            uvGrid->getShoreDistance(oldY - delta, oldX)) / (2 * delta);
-                            double gradLon = (uvGrid->getShoreDistance(oldY, oldX + delta) -
-                                            uvGrid->getShoreDistance(oldY, oldX - delta)) / (2 * delta);
-
-                            // Determine movement direction
-                            auto vel = bilinearinterpolate(*uvGrid, t, oldY, oldX);
-                            double dot = vel.u * gradLon + vel.v * gradLat;
-
-                            if (dot < 0  && coastalResidenceTimes[n] >= coastalTimeThreshold) // Moving towards shore
-                            {
-                                this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
-                            }
-                            else
-                            {
-                                if (dot >= 0)
-                                    coastalResidenceTimes[n] = 0;
-                                this->particlesBeached->SetValue(n, 0);
-                                this->points->SetPoint(n, point);
-                                modifiedData = true;
-                            }
-                        }
-                        else
-                        {
-                            if (!inBuffer)
-                                coastalResidenceTimes[n] = 0;
-                            this->particlesBeached->SetValue(n, 0);
-                            this->points->SetPoint(n, point);
-                            modifiedData = true;
-                        }
-                    }
-                    break;
+                }
 
                 case BeachingType::None:
-                    // Only beach if outside grid
                     if (point[0] <= uvGrid->lonMin() || point[0] >= uvGrid->lonMax() ||
-                        point[1] <= uvGrid->latMin() || point[1] >= uvGrid->latMax())
-                    {
+                        point[1] <= uvGrid->latMin() || point[1] >= uvGrid->latMax()) {
                         this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
-                    }
-                    else
-                    {
+                    } else {
                         this->particlesBeached->SetValue(n, 0);
                         this->points->SetPoint(n, point);
                         modifiedData = true;
@@ -303,22 +237,40 @@ void LagrangeGlyphs::updateData(int t)
                     break;
             }
 
-            bool inCoastal = uvGrid->isNearShore(point[1], point[0], 5000.0);
-            if (inCoastal)
-            {
-                if (coastalResidenceTimes.size() > static_cast<size_t>(n))
-                    coastalResidenceTimes[n] += dtTotal;
+            // Track after beaching condition is met.
+            if (trackingEnabled && n == trackedParticleIndex) {
+                trackedPositions.push_back({point[1], point[0]});
+                auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
+                trackedVelocities.push_back({vel.u, vel.v});
+                double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
+                trackedDistancesToShore.push_back(shoreDist);
+                trackedBeachingStatus.push_back(this->particlesBeached->GetValue(n) >= this->beachedAtNumberOfTimes);
             }
-            else if (coastalResidenceTimes.size() > static_cast<size_t>(n))
-            {
+
+            if (trackingAllEnabled) {
+                auto vel = bilinearinterpolate(*uvGrid, t, point[1], point[0]);
+                double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
+                bool isBeached = this->particlesBeached->GetValue(n) >= this->beachedAtNumberOfTimes;
+
+                allParticlePositions[n].push_back({point[1], point[0]});
+                allParticleVelocities[n].push_back({vel.u, vel.v});
+                allParticleDistancesToShore[n].push_back(shoreDist);
+                allParticleBeachingStatus[n].push_back(isBeached);
+            }
+
+            bool inCoastal = uvGrid->isNearShore(point[1], point[0], 5000.0);
+            if (inCoastal && coastalResidenceTimes.size() > static_cast<size_t>(n)) {
+                coastalResidenceTimes[n] += dtTotal;
+            } else if (coastalResidenceTimes.size() > static_cast<size_t>(n)) {
                 coastalResidenceTimes[n] = 0;
             }
         }
     }
-    if (modifiedData)
-        this->points->Modified();
+
+    if (modifiedData) this->points->Modified();
     this->lastT = t;
 }
+
 
 void LagrangeGlyphs::addObservers(vtkSmartPointer<vtkRenderWindowInteractor> interactor)
 {
@@ -362,6 +314,7 @@ void LagrangeGlyphs::startTracking(size_t particleIndex)
     trackedPositions.clear();
     trackedVelocities.clear();
     trackedDistancesToShore.clear();
+    trackedBeachingStatus.clear();
 }
 
 void LagrangeGlyphs::stopTracking()
@@ -405,31 +358,7 @@ void LagrangeGlyphs::printTrackedParticleInfo(const std::string &outputFilename)
             const auto &pos = trackedPositions[i];
             const auto &vel = trackedVelocities[i];
             double shoreDist = trackedDistancesToShore[i];
-
-            // Calculate if particle is beached using the exact logic from DualBoundaryConditionKernel
-            bool isBeached = false;
-            const double buffer = 5000.0;     // metres
-            const double beachThresh = 200.0; // metres
-
-            if (uvGrid->isNearShore(pos.first, pos.second, buffer))
-            {
-                // Calculate shore gradient
-                const double delta = AdvectionKernel::metreToDegrees(100);
-                double gradLat = (uvGrid->getShoreDistance(pos.first + delta, pos.second) -
-                                  uvGrid->getShoreDistance(pos.first - delta, pos.second)) /
-                                 (2 * delta);
-                double gradLon = (uvGrid->getShoreDistance(pos.first, pos.second + delta) -
-                                  uvGrid->getShoreDistance(pos.first, pos.second - delta)) /
-                                 (2 * delta);
-
-                // Calculate dot product
-                double dot = vel.first * gradLon + vel.second * gradLat;
-
-                // A particle is beached if:
-                // 1. It is moving towards shore (dot < 0)
-                // 2. It is within 200m of shore
-                isBeached = (dot < 0) && (shoreDist < beachThresh);
-            }
+            bool isBeached = trackedBeachingStatus[i];
 
             outFile << i << ","
                     << pos.first << ","
@@ -466,6 +395,7 @@ void LagrangeGlyphs::startTrackingAll()
     allParticlePositions.resize(numParticles);
     allParticleVelocities.resize(numParticles);
     allParticleDistancesToShore.resize(numParticles);
+    allParticleBeachingStatus.resize(numParticles);
 }
 
 void LagrangeGlyphs::stopTrackingAll()
@@ -493,7 +423,7 @@ void LagrangeGlyphs::printAllParticlesInfo(const std::string &outputFilename) co
     try
     {
         // Write header
-        outFile << "ParticleID,Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore\n";
+        outFile << "ParticleID,Step,Latitude,Longitude,VelocityU,VelocityV,DistanceToShore,Beached\n";
 
         // Write data for each particle
         for (size_t particleId = 0; particleId < allParticlePositions.size(); ++particleId)
@@ -512,7 +442,8 @@ void LagrangeGlyphs::printAllParticlesInfo(const std::string &outputFilename) co
                         << pos.second << ","
                         << vel.first << ","
                         << vel.second << ","
-                        << distances[step] << "\n";
+                        << distances[step] << "," 
+                        << (allParticleBeachingStatus[particleId][step] ? "Yes" : "No") << "\n";
             }
         }
 

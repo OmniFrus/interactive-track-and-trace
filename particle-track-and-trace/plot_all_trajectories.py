@@ -41,18 +41,18 @@ for particle_id, color in zip(particle_ids, colors):
     ax1.scatter(particle_data['Longitude'].iloc[-1], particle_data['Latitude'].iloc[-1],
                 color=color, s=50, transform=ccrs.PlateCarree(), marker='x')
     
-    # Check if particle is beached (distance to shore is very small)
-    beached_mask = particle_data['DistanceToShore'] < 0.001  # 1 meter threshold
-    if beached_mask.any():
-        beached_step = particle_data.loc[beached_mask.idxmax(), 'Step']
-        beached_lon = particle_data.loc[beached_mask.idxmax(), 'Longitude']
-        beached_lat = particle_data.loc[beached_mask.idxmax(), 'Latitude']
+    # Mark beaching location using simulation "Beached" column
+    if particle_data['Beached'].eq('Yes').any():
+        beach_index = particle_data[particle_data['Beached'] == 'Yes'].index[0]
+        beached_step = particle_data.loc[beach_index, 'Step']
+        beached_lon = particle_data.loc[beach_index, 'Longitude']
+        beached_lat = particle_data.loc[beach_index, 'Latitude']
         ax1.scatter(beached_lon, beached_lat, color=color, s=100, 
-                   transform=ccrs.PlateCarree(), marker='*')
+                    transform=ccrs.PlateCarree(), marker='*')
         ax1.annotate(f'Step {beached_step}', 
-                    (beached_lon, beached_lat),
-                    xytext=(10, 10), textcoords='offset points',
-                    color=color, fontsize=8)
+                     (beached_lon, beached_lat),
+                     xytext=(10, 10), textcoords='offset points',
+                     color=color, fontsize=8)
 
 # Set the map extent to show all trajectories with some padding
 lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
@@ -140,9 +140,18 @@ for particle_id in particle_ids:
     angle_std = np.std(angles)  # Standard deviation of direction changes
     
     # Check if particle is beached
-    beached_mask = particle_data['DistanceToShore'] < 0.001  # 1 meter threshold
-    beached_step = particle_data.loc[beached_mask.idxmax(), 'Step'] if beached_mask.any() else None
-    
+    is_beached = particle_data['Beached'].eq('Yes').any()
+    beached_step = particle_data[particle_data['Beached'] == 'Yes']['Step'].min() if is_beached else None
+    beached_distance = particle_data[particle_data['Beached'] == 'Yes']['DistanceToShore'].iloc[0] if is_beached else None
+
+    velocity_u_at_beach = None
+    velocity_v_at_beach = None
+
+    if is_beached:
+        beach_index = particle_data[particle_data['Beached'] == 'Yes'].index[0]
+        velocity_u_at_beach = particle_data.loc[beach_index, 'VelocityU']
+        velocity_v_at_beach = particle_data.loc[beach_index, 'VelocityV']
+
     # Calculate net displacement
     start_pos = np.array([particle_data.iloc[0]['Latitude'], particle_data.iloc[0]['Longitude']])
     end_pos = np.array([particle_data.iloc[-1]['Latitude'], particle_data.iloc[-1]['Longitude']])
@@ -153,9 +162,13 @@ for particle_id in particle_ids:
     
     stats.append({
         'ParticleID': particle_id,
+        'Start Latitude': particle_data.iloc[0]['Latitude'],
+        'Start Longitude': particle_data.iloc[0]['Longitude'],
+        'End Latitude': particle_data.iloc[-1]['Latitude'],
+        'End Longitude': particle_data.iloc[-1]['Longitude'],
         'Total Distance': total_distance,
         'Net Displacement': net_displacement,
-        'Straightness Index': straightness,  # 1 = straight line, 0 = very tortuous
+        'Straightness Index': straightness,
         'Average Velocity': avg_velocity,
         'Max Velocity': max_velocity,
         'Velocity Std Dev': velocity_std,
@@ -163,30 +176,31 @@ for particle_id in particle_ids:
         'Avg Distance to Shore': avg_shore_dist,
         'Shore Distance Std Dev': shore_dist_std,
         'Total Time Steps': total_time,
-        'Direction Change Std Dev': angle_std,  # Higher values indicate more erratic movement
-        'Beached': beached_mask.any(),
+        'Direction Change Std Dev': angle_std,
+        'Beached': is_beached,
         'Beaching Time Step': beached_step,
-        'Start Latitude': particle_data.iloc[0]['Latitude'],
-        'Start Longitude': particle_data.iloc[0]['Longitude'],
-        'End Latitude': particle_data.iloc[-1]['Latitude'],
-        'End Longitude': particle_data.iloc[-1]['Longitude']
+        'Beaching Distance': beached_distance,
+        'VelocityU at Beaching': velocity_u_at_beach,
+        'VelocityV at Beaching': velocity_v_at_beach
     })
 
 # Convert to DataFrame and save statistics
 stats_df = pd.DataFrame(stats)
 
-# Calculate some aggregate statistics
-print("\nAggregate Statistics:")
-print(f"Total number of particles: {len(particle_ids)}")
-print(f"Total simulation steps: {df['Step'].max() + 1} steps")
-print(f"Number of beached particles: {stats_df['Beached'].sum()}")
-print(f"Percentage of beached particles: {(stats_df['Beached'].sum() / len(particle_ids) * 100):.2f}%")
-print(f"Average straightness index: {stats_df['Straightness Index'].mean():.3f} (unitless)")
-print(f"Average total distance: {stats_df['Total Distance'].mean():.3f} (degrees)")
-print(f"Average net displacement: {stats_df['Net Displacement'].mean():.3f} (degrees)")
-print(f"Average velocity: {stats_df['Average Velocity'].mean():.3f} m/s") # Assuming m/s based on context
-print(f"Average time to beach (for beached particles): {stats_df[stats_df['Beached']]['Beaching Time Step'].mean():.1f} steps")
-
 # Save detailed statistics
 stats_df.to_csv('particle_statistics.csv', index=False)
-print("\nDetailed statistics saved to 'particle_statistics.csv'") 
+print("\nDetailed statistics saved to 'particle_statistics.csv'")
+
+# Append summary
+with open('particle_statistics.csv', 'a') as f:
+    f.write('\nAggregate Statistics:\n')
+    f.write(f'Total number of particles: {len(particle_ids)}\n')
+    f.write(f'Total simulation steps: {df["Step"].max() + 1} steps\n')
+    f.write(f'Number of beached particles: {stats_df["Beached"].sum()}\n')
+    f.write(f'Percentage of beached particles: {(stats_df["Beached"].sum() / len(particle_ids) * 100):.2f}%\n')
+    f.write(f'Average time to beach (for beached particles): {stats_df[stats_df["Beached"]]["Beaching Time Step"].mean():.1f} steps\n')
+    f.write(f'Average distance to shore for beached particles: {stats_df[stats_df["Beached"]]["Beaching Distance"].mean():.3f} meters\n')
+    f.write(f'Average straightness index: {stats_df["Straightness Index"].mean():.3f} (unitless)\n')
+    f.write(f'Average total distance: {stats_df["Total Distance"].mean():.3f} (degrees)\n')
+    f.write(f'Average net displacement: {stats_df["Net Displacement"].mean():.3f} (degrees)\n')
+    f.write(f'Average velocity: {stats_df["Average Velocity"].mean():.3f} m/s\n')

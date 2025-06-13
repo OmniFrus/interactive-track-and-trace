@@ -100,11 +100,14 @@ private:
   std::vector<std::pair<double, double>> trackedPositions;
   std::vector<std::pair<double, double>> trackedVelocities;
   std::vector<double> trackedDistancesToShore;
+  std::vector<bool> trackedBeachingStatus;  // Add new vector for beaching status
   
   // All particles tracking
   std::vector<std::vector<std::pair<double, double>>> allParticlePositions;
   std::vector<std::vector<std::pair<double, double>>> allParticleVelocities;
   std::vector<std::vector<double>> allParticleDistancesToShore;
+  std::vector<std::vector<bool>> allParticleBeachingStatus;
+  
   std::vector<int> coastalResidenceTimes;
   std::vector<int> dualConditionResidenceTimes;
   int coastalTimeThreshold = 6 * 3600; // minimum seconds in coastal buffer before beaching

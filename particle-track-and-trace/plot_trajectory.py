@@ -94,6 +94,7 @@ ax1.set_extent([lon_min - lon_padding, lon_max + lon_padding,
 # Add gridlines
 ax1.gridlines(draw_labels=True)
 
+
 # Add title and legend
 ax1.set_title('Particle Trajectory with Distance to Shore')
 ax1.legend()
@@ -105,6 +106,11 @@ ax2.set_xlabel('Time Step')
 ax2.set_ylabel('Distance to Shore (meters)')
 ax2.set_title('Distance to Shore Over Time')
 ax2.grid(True)
+
+if df['Beached'].eq('Yes').any():
+    beach_step = df[df['Beached'] == 'Yes']['Step'].iloc[0]
+    ax2.axvline(x=beach_step, linestyle='--', color='purple', label=f'Beached at Step {beach_step}')
+
 ax2.legend()
 
 # Adjust layout and save

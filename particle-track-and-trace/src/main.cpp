@@ -58,9 +58,9 @@ int main() {
   litter->setToDiamond();
   
   // Choose beaching conditions here:
-   litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
+  // litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::DistanceBased);    // Based on distance to shore
-  // litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased); // Based on direction and distance
+   litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased); // Based on direction and distance (dual condition)
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::None);              // No beaching (only out of bounds is considered beached)
 
   // Enable/disable directional check for DirectionalBased beaching
