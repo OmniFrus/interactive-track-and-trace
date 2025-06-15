@@ -17,7 +17,7 @@ def metre_to_degrees(m):
 
 def advect_freeslip(time, lat, lon, dt, u, v):
     shore_dist = get_shore_distance(lat, lon)
-    shoreThreshold = 2000.0  # meters
+    shoreThreshold = 0.02  # meters
     epsilon = 1e-5
     # Use the same logic as your C++ code
     if shore_dist < shoreThreshold:
@@ -43,7 +43,7 @@ def advect_freeslip(time, lat, lon, dt, u, v):
 
 def advect_partialslip(time, lat, lon, dt, u, v):
     shore_dist = get_shore_distance(lat, lon)
-    shoreThreshold = 2000.0  # meters
+    shoreThreshold = 0.02  # meters
     epsilon = 1e-5
     slipRatio = 0.5
     if shore_dist < shoreThreshold:

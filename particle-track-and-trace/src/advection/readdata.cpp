@@ -54,17 +54,14 @@ tuple<vector<int>, vector<double>, vector<double>> readGrid(string path) {
   return {time, latitude, longitude};
 }
 
-tuple<vector<double>, vector<double>, vector<double>, vector<uint8_t>> readShoreDistance(string path) {
+tuple<vector<double>, vector<double>, vector<double>, vector<uint8_t>> readShoreGrid(string path) {
   string fileName = "shore_distance.h5";
   cout << "Opening " << path + '/' + fileName << endl;
   netCDF::NcFile data(path + '/' + fileName, netCDF::NcFile::read);
+
   multimap<string, NcVar> vars = data.getVars();
 
-  auto it = vars.find("distance");
-  if (it == vars.end()) {
-      throw std::runtime_error("'distance' not found in shore_distance.h5");
-  }
-  vector<double> distances = getVarVector<double>(it->second);
+  vector<double> distances = getVarVector<double>(vars.find("distance")->second);
   vector<double> latitude = getVarVector<double>(vars.find("lat")->second);
   vector<double> longitude = getVarVector<double>(vars.find("lon")->second);
   vector<uint8_t> mask = getVarVector<uint8_t>(vars.find("mask")->second);

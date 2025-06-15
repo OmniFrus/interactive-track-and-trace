@@ -19,4 +19,3 @@ The gamified interaction will involve maneuvering a bird character to collect fo
 ![Reward1](figures/fulmar.png)
 
 ![Reward2](figures/tubenose.png)
-

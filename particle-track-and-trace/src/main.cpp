@@ -32,13 +32,13 @@ int main() {
 
   // Choose boundary condition here:
   // For Snap:
-   boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+  // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Partial Slip:
   // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Free Slip:
   // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Parcels Slip:
-  // boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
+   boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
   cout << "Created boundaryKernel successfully." << endl;
 
   cout << "Starting vtk..." << endl;
@@ -56,6 +56,7 @@ int main() {
   cout << "Created LagrangeGlyphs successfully." << endl;
   
   litter->setToDiamond();
+  litter->setCoastalTimeThreshold(6); // Set to 6 hours
   
   // Choose beaching conditions here:
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
@@ -86,7 +87,7 @@ int main() {
   
   program->addLayer(make_shared<BackgroundImage>(dataPath + "/northsea.png"));
   cout << "Added BackgroundImage layer." << endl;
-  
+
   program->addLayer(euler);  // Add Euler glyphs before litter
   cout << "Added EulerGlyphs layer." << endl;
   

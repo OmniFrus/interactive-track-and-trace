@@ -205,10 +205,13 @@ void LagrangeGlyphs::updateData(int t)
                                           uvGrid->getShoreDistance(oldY - delta, oldX)) / (2 * delta);
                         double gradLon = (uvGrid->getShoreDistance(oldY, oldX + delta) -
                                           uvGrid->getShoreDistance(oldY, oldX - delta)) / (2 * delta);
-                        auto vel = bilinearinterpolate(*uvGrid, t, oldY, oldX);
+                        Vel vel = {
+                            (point[0] - oldX) / dtTotal,
+                            (point[1] - oldY) / dtTotal
+                        };
                         double dot = vel.u * gradLon + vel.v * gradLat;
 
-                        if (dot < 0 && coastalResidenceTimes[n] >= coastalTimeThreshold) {
+                        if (dot < 0 && coastalResidenceTimes[n] >= this->coastalTimeThreshold) {
                             this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
                         } else {
                             if (dot >= 0) coastalResidenceTimes[n] = 0;
@@ -327,7 +330,7 @@ void LagrangeGlyphs::setEnableDirectionalCheck(bool enabled) {
 }
 
 void LagrangeGlyphs::setCoastalTimeThreshold(double hours) {
-    coastalTimeThreshold = static_cast<int>(hours * 3600.0);
+   this->coastalTimeThreshold = static_cast<int>(hours * 3600.0);
 }
 
 void LagrangeGlyphs::printTrackedParticleInfo(const std::string &outputFilename) const

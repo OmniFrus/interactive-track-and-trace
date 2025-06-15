@@ -10,6 +10,22 @@ The `LagrangeGlyphs` deserves some more explanation, as it depends on the `Spawn
 
 The program also adds a second observer to the vtk pattern through the `TimerCallbackCommand`. This class subscribes to a vtkTimerEvent to manage the simulation of the program. To this end the TimerCallbackCommand has attributes for a timestep (dt) and current time (time). On every controller, the current time is updated according to the dt attribute, and this change is propagated to the layers containing the data by use of the program and layer's `updateData()` functions.
 
+## Saving Trajectory Data
+
+`LagrangeGlyphs` now accepts an optional output directory used when writing
+particle trajectories. The constructor in `src/main.cpp` demonstrates passing a
+directory:
+
+```cpp
+auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(boundaryKernel),
+                                          dataPath + "/spawn_locations.csv",
+                                          "particle-track-and-trace");
+```
+
+CSV files produced by `printTrackedParticleInfo` and `printAllParticlesInfo`
+will be created inside this directory. The path can also be changed later by
+calling `setOutputDirectory()` on the `LagrangeGlyphs` instance.
+
 ## Location of data
 The data path is hardcoded such that the following tree structure is assumed:
 ```
@@ -46,7 +62,52 @@ cmake --build build --config Release
 ```
 Then run C:\Users\wesle\Documents\Universiteit\2024_2025\Thesis\Opdracht\interactive-track-and-trace\particle-track-and-trace\src\build\Release\ParticleTrackTrace.exe from the file explorer.
 
+You can modify `src/main.cpp` to change how particles interact with the coast and
+how they become beached. Two aspects control this behaviour:
 
-We can make changes to our simulation in the main.cpp file, where we can choose which boundary condition we want to run and which beaching condition we want to use, for the use of a Freeslip or Partialslip using the ParcelsBoundaryConditionKernel, we choose a slipratio from [0,1] to simulate how much we want to slip along the coast.
-Furthermore, we can run a python script which gives us all the statistics of what was ran before. This could be for a particle in particular or all at once.
+### Boundary conditions
+These determine how particles behave when they approach the edge of the grid.
 
+* **Snap** – particles that move outside the grid are snapped back to the
+  nearest valid point using `SnapBoundaryConditionKernel`.
+* **FreeSlip** – particles slide along the shoreline with the normal velocity
+  set to zero using `FreeSlipBoundaryConditionKernel`.
+* **PartialSlip** – similar to free slip but some of the normal component is
+  retained (slip ratio in `[0,1]`) with
+  `PartialSlipBoundaryConditionKernel`.
+* **Parcels** – implementation of the free‑slip algorithm as used in the
+  [Parcels](https://oceanparcels.org/) project using
+  `ParcelsRK4FreeSlipKernel`.
+
+Example selection in `main.cpp`:
+
+```cpp
+auto kernelRK4 = make_unique<RK4AdvectionKernel>(uvGrid);
+unique_ptr<AdvectionKernel> boundaryKernel;
+
+// boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+// boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+// boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4), uvGrid);
+```
+
+### Beaching conditions
+These rules decide when a particle is considered beached.
+
+* **VelocityBased** – beach when the 4 out of 8 neighbouring cells have a velocity of zero.
+* **DistanceBased** – beach when the distance to shore becomes zero.
+* **DirectionalBased** – beach when a particle spends a certain amount of time in a coastal buffer
+  and is moving towards the coast.
+* **None** – no beaching check; only leaving the grid will beach the particle.
+
+Example selection in `main.cpp`:
+
+```cpp
+// litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);
+// litter->setBeachingType(LagrangeGlyphs::BeachingType::DistanceBased);
+litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased);
+// litter->setBeachingType(LagrangeGlyphs::BeachingType::None);
+```
+
+Furthermore, you can run the provided Python scripts to generate statistics from
+previous runs. This can be done for all particles or for a selected particle.

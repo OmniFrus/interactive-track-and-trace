@@ -92,6 +92,7 @@ private:
   vtkNew<vtkGlyphSource2D> circleSource;
   int lastT = 1000;
   int beachedAtNumberOfTimes = 50;
+  int coastalTimeThreshold;
 
   // Tracking variables
   bool trackingEnabled = false;
@@ -110,7 +111,6 @@ private:
   
   std::vector<int> coastalResidenceTimes;
   std::vector<int> dualConditionResidenceTimes;
-  int coastalTimeThreshold = 6 * 3600; // minimum seconds in coastal buffer before beaching
   std::vector<std::pair<double, double>> initialSpawnPositions; // Store initial positions
   bool enableDirectionalCheck = true; // Direction check for beaching
 
@@ -127,8 +127,7 @@ private:
   enum class BoundaryType {
       Snap,
       FreeSlip,
-      PartialSlip,
-      DualCondition
+      PartialSlip
   };
   
   BoundaryType boundaryType;

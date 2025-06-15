@@ -1,6 +1,6 @@
 import h5py
 
-with h5py.File("data/grid.h5", "r") as f:
+with h5py.File("../../data/grid.h5", "r") as f:
     lats = f["latitude"][:]
     lons = f["longitude"][:]
     times = f["times"][:]
