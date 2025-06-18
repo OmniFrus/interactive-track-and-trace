@@ -21,7 +21,7 @@ void TimerCallbackCommand::Execute(vtkObject* caller, unsigned long eventId, voi
   } else if (eventId == vtkCommand::TimerEvent and not this->paused) {
     this->time += this->dt;
     if (this->time >= this->maxTime) {
-      // Stop the simulation after one year
+      // Pause the simulation after one year, comment this to not pause it automatically.
       this->paused = true;
       this->time = this->maxTime; // Keep the time at exactly one year
       cout << "Simulation completed: One year of simulation time has passed." << endl;

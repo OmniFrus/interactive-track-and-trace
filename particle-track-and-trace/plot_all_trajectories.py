@@ -129,6 +129,7 @@ for particle_id in particle_ids:
     min_shore_dist = particle_data['DistanceToShore'].min()
     avg_shore_dist = particle_data['DistanceToShore'].mean()
     shore_dist_std = particle_data['DistanceToShore'].std()
+    final_distance_to_shore = particle_data.iloc[-1]['DistanceToShore']
     
     # Time calculations
     total_time = particle_data['Step'].max() - particle_data['Step'].min()
@@ -138,6 +139,10 @@ for particle_id in particle_ids:
     dy = np.diff(particle_data['Latitude'])
     angles = np.arctan2(dy, dx) * 180 / np.pi
     angle_std = np.std(angles)  # Standard deviation of direction changes
+
+    # Track time within 5 km coastal buffer
+    within_km = particle_data['DistanceToShore'] < 5000 # Meters
+    coastal_time_steps = within_km.sum()
     
     # Check if particle is beached
     is_beached = particle_data['Beached'].eq('Yes').any()
@@ -175,13 +180,15 @@ for particle_id in particle_ids:
         'Min Distance to Shore': min_shore_dist,
         'Avg Distance to Shore': avg_shore_dist,
         'Shore Distance Std Dev': shore_dist_std,
+        'Final Distance to Shore': final_distance_to_shore,
         'Total Time Steps': total_time,
         'Direction Change Std Dev': angle_std,
         'Beached': is_beached,
         'Beaching Time Step': beached_step,
         'Beaching Distance': beached_distance,
         'VelocityU at Beaching': velocity_u_at_beach,
-        'VelocityV at Beaching': velocity_v_at_beach
+        'VelocityV at Beaching': velocity_v_at_beach,
+        'Time in Coastal Zone (steps)': coastal_time_steps
     })
 
 # Convert to DataFrame and save statistics
@@ -200,7 +207,27 @@ with open('particle_statistics.csv', 'a') as f:
     f.write(f'Percentage of beached particles: {(stats_df["Beached"].sum() / len(particle_ids) * 100):.2f}%\n')
     f.write(f'Average time to beach (for beached particles): {stats_df[stats_df["Beached"]]["Beaching Time Step"].mean():.1f} steps\n')
     f.write(f'Average distance to shore for beached particles: {stats_df[stats_df["Beached"]]["Beaching Distance"].mean():.3f} meters\n')
+    f.write(f'Average final distance to shore: {stats_df["Final Distance to Shore"].mean():.3f} meters\n')
     f.write(f'Average straightness index: {stats_df["Straightness Index"].mean():.3f} (unitless)\n')
     f.write(f'Average total distance: {stats_df["Total Distance"].mean():.3f} (degrees)\n')
     f.write(f'Average net displacement: {stats_df["Net Displacement"].mean():.3f} (degrees)\n')
     f.write(f'Average velocity: {stats_df["Average Velocity"].mean():.3f} m/s\n')
+
+#For the distance distrubution of beached particles
+# Only select beached particles
+beached_df = stats_df[stats_df["Beached"] == True]
+
+# Make a histogram
+plt.figure(figsize=(10, 6))
+plt.hist(beached_df["Beaching Distance"], bins=30, color='skyblue', edgecolor='black')
+plt.xlabel("Distance to Shore at Beaching (meters)")
+plt.ylabel("Number of Particles")
+plt.title("Distribution of Distance to Shore at Beaching")
+plt.grid(True)
+
+# Save the figure
+plt.tight_layout()
+plt.savefig('beaching_distance_distribution.png', dpi=300)
+plt.close()
+
+print("Saved: 'beaching_distance_distribution.png'")

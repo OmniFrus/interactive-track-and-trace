@@ -13,7 +13,7 @@ std::pair<double, double> PartialSlipBoundaryConditionKernel::advect(int time, d
     auto [newLat, newLon] = baseKernel->advect(time, latitude, longitude, dt);
 
     const double epsilon = 1e-5;
-    const double shoreThreshold = 2000.0; // 2 km
+    const double shoreThreshold = 5000.0; // 5 km
     const double minVelocity = 1e-4;
     const double maxVelocity = 3.0;
     const double minCoord = 0.05;

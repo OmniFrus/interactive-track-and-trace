@@ -2,6 +2,8 @@
 #include "../interpolate.h"
 #include <cmath>
 #include <algorithm>
+#include <fstream>
+#include <iomanip>
 
 ParcelsRK4FreeSlipKernel::ParcelsRK4FreeSlipKernel(std::unique_ptr<RK4AdvectionKernel> baseKernel, std::shared_ptr<UVGrid> grid)
     : baseKernel(std::move(baseKernel)), grid(grid) {}
@@ -10,19 +12,31 @@ std::pair<double, double> ParcelsRK4FreeSlipKernel::advect(int time, double lat,
     const double epsilon = 1e-5;
     const double maxVelocity = 3.0;
 
+//    static std::ofstream slip_log;
+//    static bool initialized = false;
+//    if (!initialized) {
+//        slip_log.open("slip_violations.csv", std::ios::app);
+//        if (!slip_log.is_open()) { 
+//           std::cerr << "❌ Failed to open slip_violations.csv for writing!" << std::endl;
+//        } else {
+//            slip_log << "Latitude,Longitude,DotProduct,VelocityU,VelocityV,NormalX,NormalY\n";
+//        }
+//        initialized = true;
+//    }
+
     auto applySlip = [&](double u, double v, double lat, double lon) -> Vel {
         const double delta = AdvectionKernel::metreToDegrees(100); // 100m
-        const double slipRatio = 1.0; // Full slip; use <1.0 for partial slip
-        const double slipRadius = 2000.0; // Only apply slip if within 2km of shore
+        const double slipRatio = 0.5; // Full slip; use <1.0 for partial slip
+        const double slipRadius = 5000.0; // Only apply slip if within 2km of shore
 
-        if (grid->getShoreDistance(lat, lon) > slipRadius) {
-            return {u, v}; // use original velocity
-        }
-        
+        //if (grid->getShoreDistance(lat, lon) > slipRadius) { // -> comment out to have unconditional
+        //    return {u, v}; // use original velocity
+        //}
+
         double gradLat = (grid->getShoreDistance(lat + delta, lon) -
-                        grid->getShoreDistance(lat - delta, lon)) / (2 * delta);
+                          grid->getShoreDistance(lat - delta, lon)) / (2 * delta);
         double gradLon = (grid->getShoreDistance(lat, lon + delta) -
-                        grid->getShoreDistance(lat, lon - delta)) / (2 * delta);
+                          grid->getShoreDistance(lat, lon - delta)) / (2 * delta);
 
         double norm = std::sqrt(gradLat * gradLat + gradLon * gradLon);
         if (norm < 1e-8) return {u, v};  // skip if flat
@@ -36,8 +50,29 @@ std::pair<double, double> ParcelsRK4FreeSlipKernel::advect(int time, double lat,
         double v_n = u * nX + v * nY;
         double v_t = u * tX + v * tY;
 
-        double slip_u = v_t * tX + (1.0 - slipRatio) * v_n * nX;
-        double slip_v = v_t * tY + (1.0 - slipRatio) * v_n * nY;
+        double slip_u;
+        double slip_v;
+
+        //if(v_n >= 0.0) { -> Tried something, particles would circle in place. TODO - find a fix
+        //    // moving away from shore - no slip
+        //    return{u,v};
+        //} else { // moving towards shore - slip
+        //    slip_u = v_t * tX + (1.0 - slipRatio) * v_n * nX;
+        //    slip_v = v_t * tY + (1.0 - slipRatio) * v_n * nY;
+        //}
+
+        slip_u = v_t * tX + (1.0 - slipRatio) * v_n * nX; // comment these when using the if-statement above.
+        slip_v = v_t * tY + (1.0 - slipRatio) * v_n * nY;
+
+        // Log violation if slip is not tangential
+//        double finalDotWithNormal = slip_u * nX + slip_v * nY;
+//        if (std::abs(finalDotWithNormal) > 1e-5) {
+//            slip_log << std::fixed << std::setprecision(8)
+//                     << lat << "," << lon << ","
+//                     << finalDotWithNormal << ","
+//                     << u << "," << v << ","
+//                     << nX << "," << nY << "\n";
+//        }
 
         return {slip_u, slip_v};
     };

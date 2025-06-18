@@ -1,6 +1,6 @@
 import h5py
 
-with h5py.File("../../data/shore_distance.h5", "r") as f:
+with h5py.File("../../data/shore_distance_downsampled.h5", "r") as f:
     lats = f["lat"][:]
     lons = f["lon"][:]
     distances = f["distance"][:]

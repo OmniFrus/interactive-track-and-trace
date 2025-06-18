@@ -1,15 +1,15 @@
 Work items & focus areas for project completion:
 ●	implement the partial- and free-slip condition as it is published   											[DONE] denk dat dit goed is?	
 ○	the existing PARCELS partial- and free-slip BCs are mathematically described and tested for numerical correctness					[DONE, zoals het laatste in mn schrift]
-○	our suggestion: implement them as such, and then rather investigate the underlying grid-resolution issues						[DONE, grid.h5 veel lagere resolutie]
+○	our suggestion: implement them as such, and then rather investigate the underlying grid-resolution issues						[DONE, grid.h5 veel lagere resolutie dan shore_distance.h5]
 ○	test your implementation with the fluid-flow grid outlined in the original PARCELS example, and identify the grid issue					[Geen idee hoe]
 ○	resolve it by defining (for yourself) a lead grid 													[DONE, grid.h5 was dit]
 ○	if you make any changes to the given free-/partial-slip conditions, you have to mathematically-describe and numerically proven them yourself		[DONE, in schrift, achterin]
-●	identify the grid discrepancy:																[DONE, grid.h5 veel lagere resolutie]
-○	plot your computation-, elevation- and distance grid on-top of one another										[DONE, grid_overlay.png, dit wasal]
+●	identify the grid discrepancy:																[DONE, grid.h5 veel lagere resolutie. dit wist ik al]
+○	plot your computation-, elevation- and distance grid on-top of one another										[DONE, grid_overlay.png, dit waren er altijd al maar 2]
 ○	identify possibilities to reduce it to just 2 different grids												[DONE, grid_overlay.png]	
 ○	analyse your boundary conditions - identify the adequate lead grid											[DONE, alle gebruik bilinearinterpolation, grid.h5 lead grid] 
-○	run test simulations - assure the particles follow the lead grid - illustrate the consequential issues with the side-grid				[DONE]
+○	run test simulations - assure the particles follow the lead grid - illustrate the consequential issues with the side-grid				[DONE], alleen het illustreren nog
 ●	conceptually develop the dual-condition BC:														[DONE]
 ○	starting point: working slip-conditions and distance map												[DONE]
 ○	explain (in terms of basic equations and flow-charts) the distance- and orientation based boundary condition						[DONE]						
@@ -18,9 +18,9 @@ Work items & focus areas for project completion:
 ●	implement the dual-condition BC																[DONE]
 ●	evaluate the method:																	[DONE]
 ○	create 1 consistent test-particle set along the Norwegian coastline (cause that’s where the current goes to)						[DONE]
-○	run tests with unconditional snap, partial-slip and free-slip
-○	enable distance condition for partial- and free slip → compare conditional vs unconditional slip
-○	run dual-condition BC with enabled coastal zone → compare with conditional free- and partial-slip
+○	run tests with unconditional snap, partial-slip and free-slip												[DONE]
+○	enable distance condition for partial- and free slip → compare conditional vs unconditional slip							[DONE]
+○	run dual-condition BC with enabled coastal zone → compare with conditional free- and partial-slip							[DONE]
 
 
 
@@ -37,31 +37,19 @@ Work items & focus areas for project completion:
 ○	illustrate / show distance map to coast (w. appropriate colourmap)
 ○	explain numerical process
 
-
-Thanks for the update. If you have time for a meeting next week Wednesday, then that would be quite good. I'm happy to see more of the actual progress you did. Maybe, you can also just:
-- copy the 'TODO'-list from the midterm into a textfile
-- go through that list and annotate each point you already firmly resolved by adding "[DONE]" next to it
-- for points where you have something to show, demonstrate or write: please write it down in some memo (e.g. a .docx document, a Google Doc, or sth. like that)
-- send the annotate list of TODOs to me
-
 Also, we need to meet next week to decide if you present at the symposium or not, and if so, send your registration to the coordinators.
 
 As a feedback on your work:
 I had a look into your code and compared it your partial-/free slip with the parcels reference. Now, you are using a more geometric approach based on vector normals and tangents of the distance field, whereas the parcels code relies on adapting the partial derivatives on the velocity interpolation. Formally, this gets you again into the same issue you were sitting in before: you have not implemented the approach as it is written in the literature, so you need to formalize and prove it yourself.
 Now, from the approach-perspective, I like your calculation - good alternative formulation / representation of the two slip conditions. So, I think code-wise, I can agree with what you have. Still, what remains is:
+
 (a) either cite specifically where you got this slip-condition formulation from (if it is taken from some literature, ideally) or formally write down this mathematical formulation cleanly and concisely in the thesis report
 (b) if it is not taken from a math-literature piece, you need to test and prove this approach ...
 
-How did you benchmark and verified the correctness of this slip-condition now ? Did you obtain conclusive flow-data ?
-
-This would already be good to know before our meeting next week, so we can actually intervene or adapt plans early. Remember: time is ticking - no time to lose.
-
+How did you benchmark and verified the correctness of this slip-condition now ? [DONE, in schrift achterin en ook test-grid]
+Did you obtain conclusive flow-data ?						[Tested it myself in a test-grid]
 
 
 
 
 
-
-
-
-Nu bezig met het plotten van de grids op elkaar.

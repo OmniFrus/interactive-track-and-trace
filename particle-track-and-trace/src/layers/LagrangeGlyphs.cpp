@@ -141,6 +141,9 @@ void LagrangeGlyphs::spawnParticlesFromFile(const std::string &filename)
     }
 }
 
+static std::ofstream dot_log("directional_dot_log.csv", std::ios::app);
+static bool dot_log_initialized = false;
+
 void LagrangeGlyphs::updateData(int t)
 {
     const int SUPERSAMPLINGRATE = 4;
@@ -195,7 +198,7 @@ void LagrangeGlyphs::updateData(int t)
                 }
 
                 case BeachingType::DirectionalBased: {
-                    const double bufferDistance = 2000.0;
+                    const double bufferDistance = 5000.0;
                     double shoreDist = uvGrid->getShoreDistance(point[1], point[0]);
                     bool inBuffer = shoreDist < bufferDistance;
 
@@ -205,16 +208,34 @@ void LagrangeGlyphs::updateData(int t)
                                           uvGrid->getShoreDistance(oldY - delta, oldX)) / (2 * delta);
                         double gradLon = (uvGrid->getShoreDistance(oldY, oldX + delta) -
                                           uvGrid->getShoreDistance(oldY, oldX - delta)) / (2 * delta);
-                        Vel vel = {
-                            (point[0] - oldX) / dtTotal,
-                            (point[1] - oldY) / dtTotal
-                        };
+                        Vel vel = bilinearinterpolate(*uvGrid, t, oldY, oldX);
                         double dot = vel.u * gradLon + vel.v * gradLat;
 
-                        if (dot < 0 && coastalResidenceTimes[n] >= this->coastalTimeThreshold) {
+                        // Variables for logging
+                                double latStepVel = uvGrid->latStep();
+                        double lonStepVel = uvGrid->lonStep();
+                        double latMinVel = uvGrid->lats.front();
+                        double lonMinVel = uvGrid->lons.front();
+
+                        int coarseLatIdx = (point[1] - latMinVel) / latStepVel;
+                        int coarseLonIdx = (point[0] - lonMinVel) / lonStepVel;
+                        bool isLandFine = shoreDist == 0.0;
+
+                                // === Logging ===
+                        static std::ofstream log("grid_mismatch_log.csv", std::ios::app);
+                        if (t == 0 && n == 0)
+                            log << "Time,Lat,Lon,ShoreDist,IsLandFine,InBuffer,CoarseLatIdx,CoarseLonIdx,DotProduct,VelU,VelV\n";
+
+                        log << t << "," << point[1] << "," << point[0] << "," << shoreDist << "," 
+                            << isLandFine << "," << inBuffer << "," 
+                            << coarseLatIdx << "," << coarseLonIdx << "," 
+                            << dot << "," << vel.u << "," << vel.v << "\n";
+
+
+                        if (dot < -1e-4 && coastalResidenceTimes[n] >= this->coastalTimeThreshold) {
                             this->particlesBeached->SetValue(n, this->beachedAtNumberOfTimes);
                         } else {
-                            if (dot >= 0) coastalResidenceTimes[n] = 0;
+                            if (dot >= -1e-4) coastalResidenceTimes[n] = 0;
                             this->particlesBeached->SetValue(n, 0);
                             this->points->SetPoint(n, point);
                             modifiedData = true;
