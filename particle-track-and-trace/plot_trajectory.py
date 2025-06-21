@@ -1,105 +1,81 @@
+import h5py
 import pandas as pd
+import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
-import cartopy.feature as cfeature
-import numpy as np
-import h5py
 
-# Read the trajectory data
+# === Load shoreline mask ===
+with h5py.File("../../data/shore_distance.h5", "r") as f:
+    shore_lat = f["lat"][:]
+    shore_lon = f["lon"][:]
+    shore_mask = f["mask"][:].reshape(len(shore_lat), len(shore_lon))
+    shore_distance = f["distance"][:].reshape(len(shore_lat), len(shore_lon))
+
+shore_lon_grid, shore_lat_grid = np.meshgrid(shore_lon, shore_lat)
+
+# === Load velocity grid ===
+with h5py.File("../../data/grid.h5", "r") as f:
+    grid_lat = f["latitude"][:]
+    grid_lon = f["longitude"][:]
+
+grid_lon_grid, grid_lat_grid = np.meshgrid(grid_lon, grid_lat)
+
+# === Load particle trajectory ===
 df = pd.read_csv('single_particle_trajectory.csv')
 
-# Create a figure with two subplots
+# === Create 2 subplots ===
 fig = plt.figure(figsize=(15, 10))
 
-# First subplot: Map with trajectory
+# First subplot: Map
 ax1 = plt.subplot(121, projection=ccrs.PlateCarree())
 
-# Add map features
-ax1.add_feature(cfeature.LAND)
-ax1.add_feature(cfeature.OCEAN)
-ax1.add_feature(cfeature.COASTLINE)
-ax1.add_feature(cfeature.BORDERS, linestyle=':')
-
-# Plot the trajectory with color based on distance to shore (meters)
-scatter = ax1.scatter(df['Longitude'], df['Latitude'], 
-                     c=df['DistanceToShore'], cmap='viridis',
-                     transform=ccrs.PlateCarree(),
-                     label='Particle Path')
-
-# Add colorbar
-plt.colorbar(scatter, ax=ax1, label='Distance to Shore (meters)')
-
-# Add start and end points
-ax1.scatter(df['Longitude'].iloc[0], df['Latitude'].iloc[0], 
-           color='green', s=100, transform=ccrs.PlateCarree(),
-           label='Start')
-ax1.scatter(df['Longitude'].iloc[-1], df['Latitude'].iloc[-1], 
-           color='red', s=100, transform=ccrs.PlateCarree(),
-           label='End')
-
-# Add velocity vectors (every 10th point to avoid overcrowding)
-step = 10
-for i in range(0, len(df), step):
-    ax1.quiver(df['Longitude'].iloc[i], df['Latitude'].iloc[i],
-              df['VelocityU'].iloc[i], df['VelocityV'].iloc[i],
-              color='black', scale=50, transform=ccrs.PlateCarree())
-    
-# Overlay grid points from grid.h5 or shore_distance.h5
-grid_file = "../../data/grid.h5"  # or "shore_distance.h5" if you prefer
-with h5py.File(grid_file, "r") as f:
-    # Try both naming conventions
-    if "latitude" in f and "longitude" in f:
-        lats = f["latitude"][:]
-        lons = f["longitude"][:]
-    elif "lat" in f and "lon" in f:
-        lats = f["lat"][:]
-        lons = f["lon"][:]
-    else:
-        raise ValueError("No lat/lon found in file")
-
-# Create meshgrid for all grid points
-lon_grid, lat_grid = np.meshgrid(lons, lats)
-
-# Overlay grid points on the map
-ax1.scatter(lon_grid, lat_grid, s=8, color='black', alpha=0.4, label='Grid Points', transform=ccrs.PlateCarree())
-
-
-# Overlay grid points from grid.h5 or shore_distance.h5
-grid_file = "../../data/grid.h5"  # or "shore_distance.h5" if you prefer
-with h5py.File(grid_file, "r") as f:
-    # Try both naming conventions
-    if "latitude" in f and "longitude" in f:
-        lats = f["latitude"][:]
-        lons = f["longitude"][:]
-    elif "lat" in f and "lon" in f:
-        lats = f["lat"][:]
-        lons = f["lon"][:]
-    else:
-        raise ValueError("No lat/lon found in file")
-
-# Create meshgrid for all grid points
-lon_grid, lat_grid = np.meshgrid(lons, lats)
-
-# Overlay grid points on the map
-ax1.scatter(lon_grid, lat_grid, s=8, color='black', alpha=0.4, label='Grid Points', transform=ccrs.PlateCarree())
-
-# Set the map extent to show the full trajectory with some padding
+# Zoom on particle
 lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
 lat_min, lat_max = df['Latitude'].min(), df['Latitude'].max()
 lon_padding = (lon_max - lon_min) * 0.1
 lat_padding = (lat_max - lat_min) * 0.1
+
 ax1.set_extent([lon_min - lon_padding, lon_max + lon_padding,
-               lat_min - lat_padding, lat_max + lat_padding])
+                lat_min - lat_padding, lat_max + lat_padding])
 
-# Add gridlines
-ax1.gridlines(draw_labels=True)
+# Crop shore_distance grid using same padding:
+bbox = [lon_min - lon_padding, lon_max + lon_padding,
+        lat_min - lat_padding, lat_max + lat_padding]
+
+lon_mask = (shore_lon >= bbox[0]) & (shore_lon <= bbox[1])
+lat_mask = (shore_lat >= bbox[2]) & (shore_lat <= bbox[3])
+
+shore_lon_crop = shore_lon[lon_mask]
+shore_lat_crop = shore_lat[lat_mask]
+shore_distance_crop = shore_distance[np.ix_(lat_mask, lon_mask)]
+
+shore_lon_grid_crop, shore_lat_grid_crop = np.meshgrid(shore_lon_crop, shore_lat_crop)
+
+# Now plot cropped GEBCO grid:
+c = ax1.pcolormesh(shore_lon_grid_crop, shore_lat_grid_crop, shore_distance_crop,
+                   cmap='Blues_r', shading='auto', transform=ccrs.PlateCarree())
+
+plt.colorbar(c, ax=ax1, label='Distance to Shore (meters)')
+
+# Plot shoreline mask
+ax1.contourf(shore_lon_grid, shore_lat_grid, shore_mask, levels=[0.5, 1], colors='lightgray', alpha=0.8, transform=ccrs.PlateCarree())
+
+# Velocity grid lines
+ax1.plot(grid_lon_grid, grid_lat_grid, color='lightblue', linewidth=0.8, transform=ccrs.PlateCarree())
+ax1.plot(grid_lon_grid.T, grid_lat_grid.T, color='lightblue', linewidth=0.8, transform=ccrs.PlateCarree())
+
+# Particle trajectory
+ax1.plot(df['Longitude'], df['Latitude'], 'r-', linewidth=2, label='Trajectory', transform=ccrs.PlateCarree())
+
+# Start and end points
+ax1.scatter(df['Longitude'].iloc[0], df['Latitude'].iloc[0], color='green', s=100, label='Start', transform=ccrs.PlateCarree())
+ax1.scatter(df['Longitude'].iloc[-1], df['Latitude'].iloc[-1], color='black', s=100, label='End', transform=ccrs.PlateCarree())
 
 
-# Add title and legend
-ax1.set_title('Particle Trajectory with Distance to Shore')
+ax1.set_title('Particle Trajectory with Shoreline Mask and Velocity Grid')
 ax1.legend()
 
-# Second subplot: Distance to shore over time
+# Second subplot: Distance to Shore
 ax2 = plt.subplot(122)
 ax2.plot(df['Step'], df['DistanceToShore'], 'b-', label='Distance to Shore')
 ax2.set_xlabel('Time Step')
@@ -113,9 +89,7 @@ if df['Beached'].eq('Yes').any():
 
 ax2.legend()
 
-# Adjust layout and save
+# Finalize
 plt.tight_layout()
 plt.savefig('particle_trajectory_map.png', dpi=300, bbox_inches='tight')
-plt.close()
-
-print("Map visualization saved as 'particle_trajectory_map.png'") 
+plt.show()

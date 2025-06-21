@@ -4,9 +4,17 @@ import cartopy.crs as ccrs
 import cartopy.feature as cfeature
 import numpy as np
 from matplotlib.colors import LinearSegmentedColormap
+import h5py
 
 # Read the trajectory data
 df = pd.read_csv('all_particles_trajectory.csv')
+# === Load shoreline mask ===
+with h5py.File("../../data/shore_distance.h5", "r") as f:
+    shore_lat = f["lat"][:]
+    shore_lon = f["lon"][:]
+    shore_mask = f["mask"][:].reshape(len(shore_lat), len(shore_lon))
+
+shore_lon_grid, shore_lat_grid = np.meshgrid(shore_lon, shore_lat)
 
 # Create a figure with two subplots
 fig = plt.figure(figsize=(20, 10))
@@ -14,11 +22,9 @@ fig = plt.figure(figsize=(20, 10))
 # First subplot: Map with all trajectories
 ax1 = plt.subplot(121, projection=ccrs.PlateCarree())
 
-# Add map features
-ax1.add_feature(cfeature.LAND)
-ax1.add_feature(cfeature.OCEAN)
-ax1.add_feature(cfeature.COASTLINE)
-ax1.add_feature(cfeature.BORDERS, linestyle=':')
+# Plot shoreline mask background:
+ax1.contourf(shore_lon_grid, shore_lat_grid, shore_mask,
+             levels=[0.5, 1], colors='lightgray', alpha=0.8, transform=ccrs.PlateCarree())
 
 # Get unique particle IDs
 particle_ids = df['ParticleID'].unique()
