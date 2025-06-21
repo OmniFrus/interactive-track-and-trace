@@ -212,7 +212,7 @@ void LagrangeGlyphs::updateData(int t)
                         double dot = vel.u * gradLon + vel.v * gradLat;
 
                         // Variables for logging
-                                double latStepVel = uvGrid->latStep();
+                        double latStepVel = uvGrid->latStep();
                         double lonStepVel = uvGrid->lonStep();
                         double latMinVel = uvGrid->lats.front();
                         double lonMinVel = uvGrid->lons.front();
