@@ -29,9 +29,9 @@ std::pair<double, double> ParcelsRK4FreeSlipKernel::advect(int time, double lat,
         const double slipRatio = 1.0; // Full slip; use <1.0 for partial slip
         const double slipRadius = 5000.0; // Only apply slip if within 2km of shore
 
-        //if (grid->getShoreDistance(lat, lon) > slipRadius) { // -> comment out to have unconditional
-        //    return {u, v}; // use original velocity
-        //}
+        if (grid->getShoreDistance(lat, lon) > slipRadius) { // -> comment out to have unconditional
+            return {u, v}; // use original velocity
+        }
 
         double gradLat = (grid->getShoreDistance(lat + delta, lon) -
                           grid->getShoreDistance(lat - delta, lon)) / (2 * delta);
