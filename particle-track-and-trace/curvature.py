@@ -46,14 +46,20 @@ positive_magnitude = fft_magnitude[fft_freqs >= 0]
 nonzero_freqs = positive_freqs[positive_freqs > 0]
 nonzero_magnitude = positive_magnitude[positive_freqs > 0]
 
-# Dominant index
-dominant_index = np.argmax(nonzero_magnitude)
-dominant_freq = nonzero_freqs[dominant_index]
-dominant_value = nonzero_magnitude[dominant_index]
+# Only keep frequencies > threshold
+freq_threshold = 0.01  # (1/hour), for example: skip ultra-low frequencies
+
+valid_mask = (nonzero_freqs > freq_threshold)
+valid_freqs = nonzero_freqs[valid_mask]
+valid_magnitude = nonzero_magnitude[valid_mask]
+
+dominant_index = np.argmax(valid_magnitude)
+dominant_freq = valid_freqs[dominant_index]
+dominant_value = valid_freqs[dominant_index]
 
 # Plot
 plt.figure(figsize=(12,6))
-plt.plot(nonzero_freqs, nonzero_magnitude, marker='o')
+plt.plot(valid_freqs, valid_magnitude, marker='o')
 plt.title("Fourier Spectrum of Path Curvature (no DC)")
 plt.xlabel("Frequency (1/hour)")
 plt.ylabel("Magnitude")

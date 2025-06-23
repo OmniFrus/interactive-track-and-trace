@@ -146,6 +146,45 @@ for particle_id in particle_ids:
     angles = np.arctan2(dy, dx) * 180 / np.pi
     angle_std = np.std(angles)  # Standard deviation of direction changes
 
+        # ====== Curvature and FFT ======
+    x = particle_data['Longitude'].values
+    y = particle_data['Latitude'].values
+    t = particle_data['Step'].values * 1.0  # 1 step = 1 hour
+
+    dx_dt = np.gradient(x, t)
+    dy_dt = np.gradient(y, t)
+    d2x_dt2 = np.gradient(dx_dt, t)
+    d2y_dt2 = np.gradient(dy_dt, t)
+
+    epsilon = 1e-10
+    curvature = np.abs(dx_dt * d2y_dt2 - dy_dt * d2x_dt2) / ((dx_dt**2 + dy_dt**2)**1.5 + epsilon)
+
+    # Mean curvature, 95% curvature
+    mean_curvature = np.mean(curvature)
+    percentile95_curvature = np.percentile(curvature, 95)
+
+    # FFT of curvature
+    fft_result = np.fft.fft(curvature)
+    fft_freqs = np.fft.fftfreq(len(curvature), d=1.0)  # d = 1 hour
+    fft_magnitude = np.abs(fft_result)
+
+    positive_freqs = fft_freqs[fft_freqs > 0]
+    positive_magnitude = fft_magnitude[fft_freqs > 0]
+
+    if len(positive_magnitude) > 0:
+        dominant_freq = positive_freqs[np.argmax(positive_magnitude)]
+        total_energy = np.sum(positive_magnitude**2)
+
+        # Split threshold = 1/(6h) = 0.1667 (1/hour)
+        threshold = 1.0 / 6.0
+        high_energy = np.sum(positive_magnitude[positive_freqs > threshold]**2)
+        low_energy  = np.sum(positive_magnitude[positive_freqs <= threshold]**2)
+        ratio_high_low = high_energy / (low_energy + 1e-12)
+    else:
+        dominant_freq = 0.0
+        total_energy = 0.0
+        ratio_high_low = 0.0
+
     # Track time within 5 km coastal buffer
     within_km = particle_data['DistanceToShore'] < 5000 # Meters
     coastal_time_steps = within_km.sum()
@@ -194,7 +233,12 @@ for particle_id in particle_ids:
         'Beaching Distance': beached_distance,
         'VelocityU at Beaching': velocity_u_at_beach,
         'VelocityV at Beaching': velocity_v_at_beach,
-        'Time in Coastal Zone (steps)': coastal_time_steps
+        'Time in Coastal Zone (steps)': coastal_time_steps,
+        'Mean Curvature': mean_curvature,
+        '95% Curvature': percentile95_curvature,
+        'Dominant Freq (1/h)': dominant_freq,
+        'Curvature Total Energy': total_energy,
+        'High/Low Freq Ratio': ratio_high_low
     })
 
 # Convert to DataFrame and save statistics

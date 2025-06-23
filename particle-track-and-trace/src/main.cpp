@@ -33,13 +33,13 @@ int main() {
 
   // Choose boundary condition here:
   // For Snap:
-  // boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+   boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Partial Slip:
   // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Free Slip:
   // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Parcels Slip:
-   boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
+  // boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
   cout << "Created boundaryKernel successfully." << endl;
 
   cout << "Starting vtk..." << endl;
@@ -61,8 +61,8 @@ int main() {
   
   // Choose beaching conditions here:
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
-   litter->setBeachingType(LagrangeGlyphs::BeachingType::DistanceBased);    // Based on distance to shore
-  // litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased); // Based on direction and distance (dual condition)
+  // litter->setBeachingType(LagrangeGlyphs::BeachingType::DistanceBased);    // Based on distance to shore
+   litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased); // Based on direction and distance (dual condition)
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::None);              // No beaching (only out of bounds is considered beached)
 
   // Enable/disable directional check for DirectionalBased beaching
