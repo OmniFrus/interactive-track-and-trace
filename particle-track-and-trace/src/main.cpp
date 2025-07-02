@@ -31,7 +31,7 @@ int main() {
   auto kernelRK4 = make_unique<RK4AdvectionKernel>(uvGrid);
   unique_ptr<AdvectionKernel> boundaryKernel;
 
-  // Choose boundary condition here:
+  // Choose advection kernel here:
   // For Snap:
    boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Partial Slip:
@@ -59,7 +59,7 @@ int main() {
   litter->setToDiamond();
   litter->setCoastalTimeThreshold(12); // Set to 24 hours
   
-  // Choose beaching conditions here:
+  // Choose beaching criteria here:
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::DistanceBased);    // Based on distance to shore
    litter->setBeachingType(LagrangeGlyphs::BeachingType::DirectionalBased); // Based on direction and distance (dual condition)

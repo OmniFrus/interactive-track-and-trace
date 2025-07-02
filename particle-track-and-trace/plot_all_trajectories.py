@@ -194,6 +194,18 @@ for particle_id in particle_ids:
     beached_step = particle_data[particle_data['Beached'] == 'Yes']['Step'].min() if is_beached else None
     beached_distance = particle_data[particle_data['Beached'] == 'Yes']['DistanceToShore'].iloc[0] if is_beached else None
 
+     # === Detect False Beaching (Too-Late) ===
+    false_beaching = False
+    if is_beached:
+        beach_index = particle_data[particle_data['Beached'] == 'Yes'].index[0]
+        pre_beach = particle_data.loc[:beach_index]
+
+        # If distance was zero before beaching (i.e., particle already on land)
+        if (pre_beach['DistanceToShore'] == 0).any():
+            false_beaching = True
+    else:
+        false_beaching = None  # not applicable
+
     velocity_u_at_beach = None
     velocity_v_at_beach = None
 
@@ -233,7 +245,8 @@ for particle_id in particle_ids:
         'Beaching Distance': beached_distance,
         'VelocityU at Beaching': velocity_u_at_beach,
         'VelocityV at Beaching': velocity_v_at_beach,
-        'Time in Coastal Zone (steps)': coastal_time_steps,
+        'False Beaching (Too Late)': false_beaching,
+        'Time in Coastal Zone (steps)': coastal_time_steps, # only useful for Dual Condition
         'Mean Curvature': mean_curvature,
         '95% Curvature': percentile95_curvature,
         'Dominant Freq (1/h)': dominant_freq,
@@ -255,6 +268,8 @@ with open('particle_statistics.csv', 'a') as f:
     f.write(f'Total simulation steps: {df["Step"].max() + 1} steps\n')
     f.write(f'Number of beached particles: {stats_df["Beached"].sum()}\n')
     f.write(f'Percentage of beached particles: {(stats_df["Beached"].sum() / len(particle_ids) * 100):.2f}%\n')
+    f.write(f'Percentage of beached particles that were too late: '
+            f'{(stats_df["False Beaching (Too Late)"].sum() / stats_df["Beached"].sum() * 100):.2f}%\n')
     f.write(f'Average time to beach (for beached particles): {stats_df[stats_df["Beached"]]["Beaching Time Step"].mean():.1f} steps\n')
     f.write(f'Average distance to shore for beached particles: {stats_df[stats_df["Beached"]]["Beaching Distance"].mean():.3f} meters\n')
     f.write(f'Average final distance to shore: {stats_df["Final Distance to Shore"].mean():.3f} meters\n')
