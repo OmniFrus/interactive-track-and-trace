@@ -199,12 +199,9 @@ for particle_id in particle_ids:
     if is_beached:
         beach_index = particle_data[particle_data['Beached'] == 'Yes'].index[0]
         pre_beach = particle_data.loc[:beach_index]
-
-        # If distance was zero before beaching (i.e., particle already on land)
-        if (pre_beach['DistanceToShore'] == 0).any():
+        consecutive = (pre_beach['DistanceToShore'] == 0).astype(int).rolling(2).sum().max()
+        if consecutive >= 2:
             false_beaching = True
-    else:
-        false_beaching = None  # not applicable
 
     velocity_u_at_beach = None
     velocity_v_at_beach = None

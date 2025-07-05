@@ -7,10 +7,10 @@
 #include "Program.h"
 #include "advection/UVGrid.h"
 #include "advection/kernel/RK4AdvectionKernel.h"
-#include "advection/kernel/SnapBoundaryConditionKernel.h"
-#include "advection/kernel/FreeSlipBoundaryConditionKernel.h"
-#include "advection/kernel/PartialSlipBoundaryConditionKernel.h"
-#include "advection/kernel/ParcelsBoundaryConditionKernel.h"
+#include "advection/kernel/SnapAdvectionConditionKernel.h"
+#include "advection/kernel/FreeSlipAdvectionConditionKernel.h"
+#include "advection/kernel/PartialSlipAdvectionConditionKernel.h"
+#include "advection/kernel/ParcelsAdvectionConditionKernel.h"
 
 #include <vtkPolyDataMapper2D.h>
 #include <vtkProperty2D.h>
@@ -29,18 +29,18 @@ int main() {
   cout << "Created UVGrid." << endl;
 
   auto kernelRK4 = make_unique<RK4AdvectionKernel>(uvGrid);
-  unique_ptr<AdvectionKernel> boundaryKernel;
+  unique_ptr<AdvectionKernel> advectionKernel;
 
   // Choose advection kernel here:
   // For Snap:
-   boundaryKernel = make_unique<SnapBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
-  // For Partial Slip:
-  // boundaryKernel = make_unique<PartialSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
-  // For Free Slip:
-  // boundaryKernel = make_unique<FreeSlipBoundaryConditionKernel>(std::move(kernelRK4), uvGrid);
+   advectionKernel = make_unique<SnapAdvectionConditionKernel>(std::move(kernelRK4), uvGrid);
+  // For Partial Slip: (not used, wrong implementation)
+  // advectionKernel = make_unique<PartialSlipAdvectionConditionKernel>(std::move(kernelRK4), uvGrid);
+  // For Free Slip: (not used, wrong implementation)
+  // advectionKernel = make_unique<FreeSlipAdvectionConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Parcels Slip:
-  // boundaryKernel = make_unique<ParcelsRK4FreeSlipKernel>(std::move(kernelRK4),uvGrid);
-  cout << "Created boundaryKernel successfully." << endl;
+  // advectionKernel = make_unique<ParcelsAdvectionKernel>(std::move(kernelRK4),uvGrid);
+  cout << "Created advectionKernel successfully." << endl;
 
   cout << "Starting vtk..." << endl;
   auto program = make_shared<Program>(dt);
@@ -53,11 +53,11 @@ int main() {
   cout << "Created Camera." << endl;
 
   // Create and configure litter particles with spawn locations from CSV
-  auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(boundaryKernel), dataPath + "/spawn_locations.csv");
+  auto litter = make_shared<LagrangeGlyphs>(uvGrid, std::move(advectionKernel), dataPath + "/spawn_locations.csv");
   cout << "Created LagrangeGlyphs successfully." << endl;
   
   litter->setToDiamond();
-  litter->setCoastalTimeThreshold(12); // Set to 24 hours
+  litter->setCoastalTimeThreshold(24); // Set to 12 hours
   
   // Choose beaching criteria here:
   // litter->setBeachingType(LagrangeGlyphs::BeachingType::VelocityBased);    // Original snap boundary logic

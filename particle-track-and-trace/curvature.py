@@ -36,7 +36,10 @@ plt.title("Curvature vs Time")
 plt.xlabel("Time (hours)")
 plt.ylabel("Curvature κ(t)")
 plt.grid()
+plt.tight_layout()
+plt.savefig("curvature_vs_time.png", dpi=300)
 plt.show()
+
 
 # === PLOT FFT ===
 positive_freqs = fft_freqs[fft_freqs >= 0]
@@ -57,7 +60,7 @@ dominant_index = np.argmax(valid_magnitude)
 dominant_freq = valid_freqs[dominant_index]
 dominant_value = valid_freqs[dominant_index]
 
-# Plot
+# === PLOT FFT ===
 plt.figure(figsize=(12,6))
 plt.plot(valid_freqs, valid_magnitude, marker='o')
 plt.title("Fourier Spectrum of Path Curvature (no DC)")
@@ -67,6 +70,8 @@ plt.grid()
 plt.annotate(f'Dominant freq = {dominant_freq:.4f} (1/hour)', xy=(dominant_freq, dominant_value),
              xytext=(dominant_freq, dominant_value*1.1),
              arrowprops=dict(facecolor='red', shrink=0.05))
+plt.tight_layout()
+plt.savefig("curvature_fft_spectrum.png", dpi=300)
 plt.show()
 
 # === PRINT DOMINANT FREQUENCY ===

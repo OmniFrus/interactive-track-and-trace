@@ -75,14 +75,14 @@ add_executable(ParticleTrackTrace MACOSX_BUNDLE
     advection/UVGrid.h
     advection/Vel.cpp
     advection/Vel.h
-    advection/kernel/SnapBoundaryConditionKernel.h
-    advection/kernel/SnapBoundaryConditionKernel.cpp
-    advection/kernel/FreeSlipBoundaryConditionKernel.h
-    advection/kernel/FreeSlipBoundaryConditionKernel.cpp
-    advection/kernel/PartialSlipBoundaryConditionKernel.h
-    advection/kernel/PartialSlipBoundaryConditionKernel.cpp
-    advection/kernel/ParcelsBoundaryConditionKernel.cpp
-    advection/kernel/ParcelsBoundaryConditionKernel.h
+    advection/kernel/SnapAdvectionConditionKernel.h
+    advection/kernel/SnapAdvectionConditionKernel.cpp
+    advection/kernel/FreeSlipAdvectionConditionKernel.h
+    advection/kernel/FreeSlipAdvectionConditionKernel.cpp
+    advection/kernel/PartialSlipAdvectionConditionKernel.h
+    advection/kernel/PartialSlipAdvectionConditionKernel.cpp
+    advection/kernel/ParcelsAdvectionConditionKernel.cpp
+    advection/kernel/ParcelsAdvectionConditionKernel.h
     layers/Character.h
     layers/Character.cpp
     commands/CharacterMoveCallback.h
