@@ -77,10 +77,6 @@ add_executable(ParticleTrackTrace MACOSX_BUNDLE
     advection/Vel.h
     advection/kernel/SnapAdvectionConditionKernel.h
     advection/kernel/SnapAdvectionConditionKernel.cpp
-    advection/kernel/FreeSlipAdvectionConditionKernel.h
-    advection/kernel/FreeSlipAdvectionConditionKernel.cpp
-    advection/kernel/PartialSlipAdvectionConditionKernel.h
-    advection/kernel/PartialSlipAdvectionConditionKernel.cpp
     advection/kernel/ParcelsAdvectionConditionKernel.cpp
     advection/kernel/ParcelsAdvectionConditionKernel.h
     layers/Character.h

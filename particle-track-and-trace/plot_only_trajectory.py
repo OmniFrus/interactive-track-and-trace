@@ -1,75 +1,83 @@
-import h5py
 import pandas as pd
-import numpy as np
 import matplotlib.pyplot as plt
 import cartopy.crs as ccrs
+import cartopy.feature as cfeature
+import numpy as np
+from matplotlib.colors import LinearSegmentedColormap
+import h5py
 
-# === Load shoreline mask and distance ===
+# Read the trajectory data
+df = pd.read_csv('all_particles_trajectory.csv')
+
+# === Load shoreline mask ===
 with h5py.File("../../data/shore_distance.h5", "r") as f:
     shore_lat = f["lat"][:]
     shore_lon = f["lon"][:]
     shore_mask = f["mask"][:].reshape(len(shore_lat), len(shore_lon))
-    shore_distance = f["distance"][:].reshape(len(shore_lat), len(shore_lon))
 
 shore_lon_grid, shore_lat_grid = np.meshgrid(shore_lon, shore_lat)
 
-# === Load velocity grid ===
-with h5py.File("../../data/grid.h5", "r") as f:
-    grid_lat = f["latitude"][:]
-    grid_lon = f["longitude"][:]
+# Create figure
+fig = plt.figure(figsize=(12, 8))
 
-grid_lon_grid, grid_lat_grid = np.meshgrid(grid_lon, grid_lat)
+# Create subplot for map
+ax1 = plt.subplot(111, projection=ccrs.PlateCarree())
 
-# === Load particle trajectory ===
-df = pd.read_csv('single_particle_trajectory.csv')
+# Plot shoreline mask
+ax1.contourf(shore_lon_grid, shore_lat_grid, shore_mask,
+             levels=[0.5, 1], colors='lightgray', alpha=0.8, transform=ccrs.PlateCarree())
 
-# === Plot single map ===
-fig = plt.figure(figsize=(10, 8))
-ax = plt.axes(projection=ccrs.PlateCarree())
+# Get unique particle IDs
+particle_ids = df['ParticleID'].unique()
 
-# Zoom around trajectory
+# Create colormap
+colors = plt.cm.rainbow(np.linspace(0, 1, len(particle_ids)))
+
+# Plot trajectories
+for particle_id, color in zip(particle_ids, colors):
+    particle_data = df[df['ParticleID'] == particle_id]
+    
+    # Plot trajectory
+    ax1.plot(particle_data['Longitude'], particle_data['Latitude'], 
+             color=color, alpha=0.5, linewidth=1,
+             transform=ccrs.PlateCarree())
+    
+    # Add start and end markers
+    ax1.scatter(particle_data['Longitude'].iloc[0], particle_data['Latitude'].iloc[0],
+                color=color, s=50, transform=ccrs.PlateCarree(), marker='o')
+    ax1.scatter(particle_data['Longitude'].iloc[-1], particle_data['Latitude'].iloc[-1],
+                color=color, s=50, transform=ccrs.PlateCarree(), marker='x')
+    
+    # Mark beaching point if it exists
+    if particle_data['Beached'].eq('Yes').any():
+        beach_index = particle_data[particle_data['Beached'] == 'Yes'].index[0]
+        beached_step = particle_data.loc[beach_index, 'Step']
+        beached_lon = particle_data.loc[beach_index, 'Longitude']
+        beached_lat = particle_data.loc[beach_index, 'Latitude']
+        ax1.scatter(beached_lon, beached_lat, color=color, s=100, 
+                    transform=ccrs.PlateCarree(), marker='*')
+        ax1.annotate(f'Step {beached_step}', 
+                     (beached_lon, beached_lat),
+                     xytext=(10, 10), textcoords='offset points',
+                     color=color, fontsize=8)
+
+# Set map extent
 lon_min, lon_max = df['Longitude'].min(), df['Longitude'].max()
 lat_min, lat_max = df['Latitude'].min(), df['Latitude'].max()
 lon_padding = (lon_max - lon_min) * 0.1
 lat_padding = (lat_max - lat_min) * 0.1
-
-ax.set_extent([lon_min - lon_padding, lon_max + lon_padding,
+ax1.set_extent([lon_min - lon_padding, lon_max + lon_padding,
                lat_min - lat_padding, lat_max + lat_padding])
 
-# Crop shore_distance grid
-bbox = [lon_min - lon_padding, lon_max + lon_padding,
-        lat_min - lat_padding, lat_max + lat_padding]
+# Add gridlines
+ax1.gridlines(draw_labels=True)
 
-lon_mask = (shore_lon >= bbox[0]) & (shore_lon <= bbox[1])
-lat_mask = (shore_lat >= bbox[2]) & (shore_lat <= bbox[3])
-shore_lon_crop = shore_lon[lon_mask]
-shore_lat_crop = shore_lat[lat_mask]
-shore_distance_crop = shore_distance[np.ix_(lat_mask, lon_mask)]
-shore_lon_grid_crop, shore_lat_grid_crop = np.meshgrid(shore_lon_crop, shore_lat_crop)
+# Add title
+ax1.set_title('All Particle Trajectories\n* indicates beaching location')
 
-# Plot background distance to shore
-c = ax.pcolormesh(shore_lon_grid_crop, shore_lat_grid_crop, shore_distance_crop,
-                  cmap='Blues_r', shading='auto', transform=ccrs.PlateCarree())
-plt.colorbar(c, ax=ax, label='Distance to Shore (m)')
-
-# Plot shoreline mask
-ax.contourf(shore_lon_grid, shore_lat_grid, shore_mask, levels=[0.5, 1],
-            colors='lightgray', alpha=0.8, transform=ccrs.PlateCarree())
-
-# Plot velocity grid
-ax.plot(grid_lon_grid, grid_lat_grid, color='lightblue', linewidth=0.8, transform=ccrs.PlateCarree())
-ax.plot(grid_lon_grid.T, grid_lat_grid.T, color='lightblue', linewidth=0.8, transform=ccrs.PlateCarree())
-
-# Plot trajectory
-ax.plot(df['Longitude'], df['Latitude'], 'r-', linewidth=2, label='Trajectory', transform=ccrs.PlateCarree())
-
-# Start and end points
-ax.scatter(df['Longitude'].iloc[0], df['Latitude'].iloc[0], color='green', s=100, label='Start', transform=ccrs.PlateCarree())
-ax.scatter(df['Longitude'].iloc[-1], df['Latitude'].iloc[-1], color='black', s=100, label='End', transform=ccrs.PlateCarree())
-
-# Final touches
-ax.set_title('Particle Trajectory with Shoreline and Velocity Grid')
-ax.legend()
+# Save the plot
 plt.tight_layout()
-plt.savefig('trajectory_only_map.png', dpi=300, bbox_inches='tight')
-plt.show()
+plt.savefig('all_particles_trajectory_map.png', dpi=300, bbox_inches='tight')
+plt.close()
+
+print("Trajectory map saved as 'all_particles_trajectory_map.png'")

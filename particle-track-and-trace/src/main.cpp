@@ -8,10 +8,7 @@
 #include "advection/UVGrid.h"
 #include "advection/kernel/RK4AdvectionKernel.h"
 #include "advection/kernel/SnapAdvectionConditionKernel.h"
-#include "advection/kernel/FreeSlipAdvectionConditionKernel.h"
-#include "advection/kernel/PartialSlipAdvectionConditionKernel.h"
 #include "advection/kernel/ParcelsAdvectionConditionKernel.h"
-
 #include <vtkPolyDataMapper2D.h>
 #include <vtkProperty2D.h>
 #include <memory>
@@ -34,10 +31,6 @@ int main() {
   // Choose advection kernel here:
   // For Snap:
    advectionKernel = make_unique<SnapAdvectionConditionKernel>(std::move(kernelRK4), uvGrid);
-  // For Partial Slip: (not used, wrong implementation)
-  // advectionKernel = make_unique<PartialSlipAdvectionConditionKernel>(std::move(kernelRK4), uvGrid);
-  // For Free Slip: (not used, wrong implementation)
-  // advectionKernel = make_unique<FreeSlipAdvectionConditionKernel>(std::move(kernelRK4), uvGrid);
   // For Parcels Slip:
   // advectionKernel = make_unique<ParcelsAdvectionKernel>(std::move(kernelRK4),uvGrid);
   cout << "Created advectionKernel successfully." << endl;

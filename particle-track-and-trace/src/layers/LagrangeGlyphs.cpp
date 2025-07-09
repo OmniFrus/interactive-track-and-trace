@@ -23,8 +23,6 @@
 #include "../CartographicTransformation.h"
 #include "../advection/interpolate.h"
 #include "../advection/kernel/SnapAdvectionConditionKernel.h"
-#include "../advection/kernel/FreeSlipAdvectionConditionKernel.h"
-#include "../advection/kernel/PartialSlipAdvectionConditionKernel.h"
 #include "../advection/kernel/ParcelsAdvectionConditionKernel.h"
 #include <cmath>
 #include <algorithm>

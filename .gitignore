@@ -2,3 +2,5 @@
 .idea
 particle-track-and-trace/all_particles_trajectory.csv
 particle-track-and-trace/single_particle_trajectory.csv
+SimData/
+troep/
