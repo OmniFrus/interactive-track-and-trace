@@ -2,18 +2,24 @@
 
 #include "UVGrid.h"
 #include "readdata.h"
-
+#include "interpolate.h"
 
 using namespace std;
 
 UVGrid::UVGrid(string path) {
+  cout << "Reading hydrodynamic_U..." << endl;
   auto us = readHydrodynamicU(path);
+  cout << "Reading hydrodynamic_V..." << endl;
   auto vs = readHydrodynamicV(path);
+  cout << "Reading grid..." << endl;
   if (us.size() != vs.size()) {
     throw domain_error(sizeError2);
   }
 
   tie(times, lats, lons) = readGrid(path);
+  cout << "Reading shore distance data..." << endl;
+  tie(shoreDistances, shoreLats, shoreLons, landMask) = readShoreGrid(path);
+  cout << "Finished reading all files." << endl;
 
   timeSize = times.size();
   latSize = lats.size();
@@ -32,9 +38,9 @@ UVGrid::UVGrid(string path) {
 }
 
 const Vel &UVGrid::operator[](size_t timeIndex, size_t latIndex, size_t lonIndex) const {
-  if (timeIndex < 0 or timeIndex >= timeSize
-      or latIndex < 0 or latIndex >= latSize
-      or lonIndex < 0 or lonIndex >= lonSize) {
+  if (timeIndex < 0 || timeIndex >= timeSize
+      || latIndex < 0 || latIndex >= latSize
+      || lonIndex < 0 || lonIndex >= lonSize) {
     throw std::out_of_range(indexOutOfBounds);
   }
   size_t index = timeIndex * (latSize * lonSize) + latIndex * lonSize + lonIndex;
@@ -82,3 +88,23 @@ void UVGrid::streamSlice(ostream &os, size_t t) {
     os << endl;
   }
 }
+
+double UVGrid::getShoreDistance(double lat, double lon) const {
+  return interpolateShoreDistance(shoreDistances, shoreLats, shoreLons, lat, lon);
+}
+
+bool UVGrid::isNearShore(double lat, double lon, double threshold) const {
+  return getShoreDistance(lat, lon) <= threshold;
+}
+
+//bool UVGrid::isLand(double lat, double lon) const { grid issue, tried this for parcels implementation
+//    int latIndex = static_cast<int>((lat - latMin()) / latStep());
+//    int lonIndex = static_cast<int>((lon - lonMin()) / lonStep());
+//
+//    if (latIndex < 0 || latIndex >= latSize || lonIndex < 0 || lonIndex >= lonSize) {
+//        return false;
+//    }
+//
+//    size_t index = latIndex * lonSize + lonIndex;
+//    return landMask[index] == 1;
+//}

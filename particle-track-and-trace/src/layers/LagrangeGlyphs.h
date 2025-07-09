@@ -8,6 +8,9 @@
 #include <vtkPolyData.h>
 #include <vtkInteractorStyle.h>
 #include <vtkGlyphSource2D.h>
+#include <string>
+#include <vector>
+#include <utility>
 
 /**
  * Implements the Layer class for the case of a Lagrangian visualization.
@@ -16,13 +19,20 @@
  */
 class LagrangeGlyphs : public Layer {
 public:
+  enum class BeachingType {
+    VelocityBased,    // Original snap boundary logic
+    DistanceBased,    // Based on distance to shore
+    DirectionalBased, // Based on direction and distance
+    None             // No beaching (like FreeSlip)
+  };
+
   /**
    * Constructor.
    * @param uvGrid UVGrid used for boundary conditions calculations
    * @param advectionKernel advects particles using given kernel
+   * @param spawnFile Path to CSV file containing spawn locations
    */
-  LagrangeGlyphs(std::shared_ptr<UVGrid> uvGrid, std::unique_ptr<AdvectionKernel> advectionKernel);
-
+  LagrangeGlyphs(std::shared_ptr<UVGrid> uvGrid, std::unique_ptr<AdvectionKernel> advectionKernel, const std::string& spawnFile);
   /**
    * This function spoofs a few points in the dataset. Mostly used for testing.
    */
@@ -45,8 +55,34 @@ public:
   void setToDiamond();
 
   void handleGameOver() override;
+
+  // Directional check control
+  void setEnableDirectionalCheck(bool enabled);
+
+
+  // Tracking methods
+  void startTracking(size_t particleIndex);
+  void stopTracking();
+  void startTrackingAll();
+  void stopTrackingAll();
+  void printTrackedParticleInfo(const std::string& outputFilename) const;
+  void printAllParticlesInfo(const std::string& outputFilename) const;
+  const std::vector<std::pair<double, double>>& getTrackedPositions() const { return trackedPositions; }
+  const std::vector<std::pair<double, double>>& getTrackedVelocities() const { return trackedVelocities; }
+  const std::vector<double>& getTrackedDistancesToShore() const { return trackedDistancesToShore; }
+  const std::vector<int>& getCoastalResidenceTimes() const { return coastalResidenceTimes; }
+
+  // Add getter methods for tracking status
+  bool isTracking() const { return trackingEnabled; }
+  bool isTrackingAll() const { return trackingAllEnabled; }
+
+  // Set the minimum coastal residence time (in hours) required for beaching
+  void setCoastalTimeThreshold(double hours);
+
+  // Add new method to set beaching type
+  void setBeachingType(BeachingType type) { beachingType = type; }
+
 private:
-//  vtkSmartPointer<vtkPoints> points;
   vtkNew<vtkPoints> points;
   vtkSmartPointer<vtkPolyData> data;
   vtkSmartPointer<vtkIntArray> particlesBeached;
@@ -56,8 +92,45 @@ private:
   vtkNew<vtkGlyphSource2D> circleSource;
   int lastT = 1000;
   int beachedAtNumberOfTimes = 50;
+  int coastalTimeThreshold;
+
+  // Tracking variables
+  bool trackingEnabled = false;
+  bool trackingAllEnabled = false;
+  size_t trackedParticleIndex = 0;
+  std::vector<std::pair<double, double>> trackedPositions;
+  std::vector<std::pair<double, double>> trackedVelocities;
+  std::vector<double> trackedDistancesToShore;
+  std::vector<bool> trackedBeachingStatus;  // Add new vector for beaching status
+  
+  // All particles tracking
+  std::vector<std::vector<std::pair<double, double>>> allParticlePositions;
+  std::vector<std::vector<std::pair<double, double>>> allParticleVelocities;
+  std::vector<std::vector<double>> allParticleDistancesToShore;
+  std::vector<std::vector<bool>> allParticleBeachingStatus;
+  
+  std::vector<int> coastalResidenceTimes;
+  std::vector<int> dualConditionResidenceTimes;
+  std::vector<std::pair<double, double>> initialSpawnPositions; // Store initial positions
+  bool enableDirectionalCheck = true; // Direction check for beaching
+
+  BeachingType beachingType = BeachingType::VelocityBased; // Default to velocity based
+
+  /**
+   * Load spawn locations from CSV file and create particles
+   * @param filename Path to the CSV file containing lat,lon coordinates
+   */
+  void spawnParticlesFromFile(const std::string& filename);
 
   vtkSmartPointer<SpawnPointCallback> createSpawnPointCallback();
+
+  enum class BoundaryType {
+      Snap,
+      FreeSlip,
+      PartialSlip
+  };
+  
+  BoundaryType boundaryType;
 };
 
 #endif

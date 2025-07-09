@@ -2,6 +2,7 @@
 #define UVGRID_H
 
 #include <vector>
+#include <iostream>
 #include "Vel.h"
 
 class UVGrid {
@@ -14,6 +15,19 @@ private:
    * 1D data vector of all the us and vs
    */
   std::vector<Vel> uvData;
+
+  /**
+   * 1D data vector of distances to shore
+   */
+  std::vector<double> shoreDistances;
+  
+  /**
+   * Original shore distance grid coordinates
+   */
+  std::vector<double> shoreLats;
+  std::vector<double> shoreLons;
+  std::vector<uint8_t> landMask;
+
 public:
   /**
    * Constructs the UVGrid.
@@ -86,6 +100,7 @@ public:
   std::vector<int> times;
   std::vector<double> lats;
   std::vector<double> lons;
+  
 
   /**
    * The 3D index into the data. The array is sized by [8761][67][116]
@@ -99,6 +114,25 @@ public:
    * @param t index with which to slice matrix
    */
   void streamSlice(std::ostream &os, size_t t);
+
+  /**
+   * Returns the interpolated distance to shore at the given lat/lon point
+   * @param lat latitude
+   * @param lon longitude
+   * @return interpolated distance to shore in meters
+   */
+  double getShoreDistance(double lat, double lon) const;
+
+  /**
+   * Returns true if the point is near shore (within threshold distance)
+   * @param lat latitude
+   * @param lon longitude
+   * @param threshold distance threshold in meters
+   * @return true if point is near shore
+   */
+  bool isNearShore(double lat, double lon, double threshold) const;
+
+  //bool isLand(double lat, double lon) const; Tried this for a parcles implementation. grid resolution issue
 };
 
 #endif //UVGRID_H

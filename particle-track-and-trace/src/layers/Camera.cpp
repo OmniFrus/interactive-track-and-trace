@@ -28,7 +28,6 @@ void Camera::clampCamera(double pos[3]) {
   cam->SetParallelScale(zoomLevel * getZoomOffset());
   double scale = cam->GetParallelScale();
 
-
   // only check the x,y coords of the camera; we don't care about z
   for (int i=0; i < 2; i++) {
     //boundary cond: scale+|pos| < 1.
@@ -61,7 +60,7 @@ void Camera::updateData(int t) {
     zoomProgress = maxZoomDuration;
     zoomIn = false;
   }
-  if (zoomProgress > 0 and !zoomIn) zoomProgress -= 1;
+  if (zoomProgress > 0 && !zoomIn) zoomProgress -= 1;
 
   if (zoomProgress < 0) zoomProgress = 0;
 }

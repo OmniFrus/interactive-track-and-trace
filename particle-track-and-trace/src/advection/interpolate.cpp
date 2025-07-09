@@ -68,7 +68,7 @@ bool isNearestNeighbourZero(const UVGrid &uvGrid, int time, double lat, double l
                         latIndex + 1 < uvGrid.latSize ? latIndex + latOffset : latIndex,
                         lonIndex + 1 < uvGrid.lonSize ? lonIndex + lonOffset : lonIndex
         ];
-        if (abs(u) < eps and abs(v) < eps ) {
+        if (abs(u) < eps && abs(v) < eps ) {
           counter++;
         }
 
@@ -77,4 +77,45 @@ bool isNearestNeighbourZero(const UVGrid &uvGrid, int time, double lat, double l
   }
 
   return counter >= 4;
+}
+
+double interpolateShoreDistance(const std::vector<double>& shoreDistances,
+                              const std::vector<double>& shoreLats,
+                              const std::vector<double>& shoreLons,
+                              double lat, double lon) {
+    // Find the four surrounding points
+    size_t latSize = shoreLats.size();
+    size_t lonSize = shoreLons.size();
+    
+    // Find the lower bound indices
+    auto latIt = std::lower_bound(shoreLats.begin(), shoreLats.end(), lat);
+    auto lonIt = std::lower_bound(shoreLons.begin(), shoreLons.end(), lon);
+    
+    // Handle edge cases
+    if (latIt == shoreLats.begin()) latIt++;
+    if (latIt == shoreLats.end()) latIt--;
+    if (lonIt == shoreLons.begin()) lonIt++;
+    if (lonIt == shoreLons.end()) lonIt--;
+    
+    size_t latIndex = std::distance(shoreLats.begin(), latIt) - 1;
+    size_t lonIndex = std::distance(shoreLons.begin(), lonIt) - 1;
+    
+    // Get the four surrounding points
+    double lat0 = shoreLats[latIndex];
+    double lat1 = shoreLats[latIndex + 1];
+    double lon0 = shoreLons[lonIndex];
+    double lon1 = shoreLons[lonIndex + 1];
+    
+    // Calculate interpolation weights
+    double t = (lat - lat0) / (lat1 - lat0);
+    double u = (lon - lon0) / (lon1 - lon0);
+    
+    // Get the four surrounding distances
+    double d00 = shoreDistances[latIndex * lonSize + lonIndex];
+    double d01 = shoreDistances[latIndex * lonSize + (lonIndex + 1)];
+    double d10 = shoreDistances[(latIndex + 1) * lonSize + lonIndex];
+    double d11 = shoreDistances[(latIndex + 1) * lonSize + (lonIndex + 1)];
+    
+    // Bilinear interpolation
+    return (1-t)*(1-u)*d00 + (1-t)*u*d01 + t*(1-u)*d10 + t*u*d11;
 }

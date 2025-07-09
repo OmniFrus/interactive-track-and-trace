@@ -28,6 +28,12 @@ void Program::setWinProperties() {
   vtkNew<vtkInteractorStyleUser> style;
   interact->SetInteractorStyle(style);
 
+  // Add camera controls with keyboard
+  auto cameraCallback = CameraMoveCallback::New(cam);
+  interact->AddObserver(vtkCommand::KeyPressEvent, cameraCallback);
+  interact->AddObserver(vtkCommand::MouseWheelForwardEvent, cameraCallback);
+  interact->AddObserver(vtkCommand::MouseWheelBackwardEvent, cameraCallback);
+
   win->SetDesiredUpdateRate(60);
   win->SetWindowName("Particle Track and Trace Gamification");
 }

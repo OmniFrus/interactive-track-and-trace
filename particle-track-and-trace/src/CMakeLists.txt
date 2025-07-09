@@ -1,13 +1,18 @@
 cmake_minimum_required(VERSION 3.12 FATAL_ERROR)
 
+# Always use vcpkg toolchain
+set(CMAKE_TOOLCHAIN_FILE "C:/Users/wesle/Documents/Universiteit/2024_2025/Thesis/Opdracht/vcpkg/scripts/buildsystems/vcpkg.cmake" CACHE STRING "")
+
 project(ParticleTrackTrace)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
-
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 
-find_package(VTK COMPONENTS
+add_compile_definitions(_USE_MATH_DEFINES)
+
+# --- VTK via find_package
+find_package(VTK REQUIRED COMPONENTS
   GeovisCore
   CommonColor
   CommonCore
@@ -24,164 +29,147 @@ find_package(VTK COMPONENTS
   IOImage
   RenderingContextOpenGL2
   RenderingCore
-  RenderingCore
   RenderingFreeType
   RenderingGL2PSOpenGL2
-  RenderingOpenGL2)
+  RenderingOpenGL2
+)
 
-
-if (NOT VTK_FOUND)
-  message(FATAL_ERROR "VtkBase: Unable to find the VTK build folder.")
-endif()
-
-# netcdf setup
+# --- SFML via find_package
+find_package(SFML COMPONENTS Network Graphics Window Audio System CONFIG REQUIRED)
 find_package(netCDF REQUIRED)
 
-include(FetchContent)
-FetchContent_Declare(SFML
-        GIT_REPOSITORY https://github.com/SFML/SFML.git
-        GIT_TAG 2.6.x)
-FetchContent_MakeAvailable(SFML)
+# --- Manual NetCDF setup (no find_package!)
+set(NETCDF_CXX_INCLUDE_DIR "${CMAKE_SOURCE_DIR}/../../../vcpkg/installed/x64-windows/include")
+set(NETCDF_CXX_LIB_DIR "${CMAKE_SOURCE_DIR}/../../../vcpkg/installed/x64-windows/lib")
 
-add_executable(ParticleTrackTrace MACOSX_BUNDLE main.cpp
-        layers/BackgroundImage.cpp
-        layers/BackgroundImage.h
-        layers/EulerGlyphs.cpp
-        layers/EulerGlyphs.h
-        layers/Layer.cpp
-        layers/Layer.h
-        layers/LagrangeGlyphs.cpp
-        layers/LagrangeGlyphs.h
-        Program.cpp
-        Program.h
-        commands/TimerCallbackCommand.h
-        commands/TimerCallbackCommand.cpp
-        commands/SpawnPointCallback.h
-        commands/SpawnPointCallback.cpp
-        commands/CameraMoveCallback.cpp
-        commands/CameraMoveCallback.h
-        CartographicTransformation.cpp
-        advection/kernel/AdvectionKernel.h
-        advection/kernel/EulerAdvectionKernel.cpp
-        advection/kernel/EulerAdvectionKernel.h
-        advection/interpolate.cpp
-        advection/interpolate.h
-        advection/readdata.cpp
-        advection/readdata.h
-        advection/kernel/RK4AdvectionKernel.cpp
-        advection/kernel/RK4AdvectionKernel.h
-        advection/UVGrid.cpp
-        advection/UVGrid.h
-        advection/Vel.cpp
-        advection/Vel.h
-        advection/kernel/SnapBoundaryConditionKernel.h
-        advection/kernel/SnapBoundaryConditionKernel.cpp
-        layers/Character.h
-        layers/Character.cpp
-        commands/CharacterMoveCallback.h
-        commands/CharacterMoveCallback.cpp
-        layers/ParticleCollision.h
-        layers/ParticleCollision.cpp
-        collisions/ParticleCollisionCallback.h
-        collisions/DummyCollisionHandler.h
-        collisions/DummyCollisionHandler.cpp
-        layers/Vessels.h
-        layers/Vessels.cpp
-        vesselroutes/VesselRoute.h
-        vesselroutes/QuadraticBezierRoute.cpp
-        vesselroutes/QuadraticBezierRoute.h
-        vesselroutes/VesselRouteFactory.cpp
-        vesselroutes/VesselRouteFactory.h
-        layers/FoodSpawner.cpp
-        layers/FoodSpawner.h
-        collisions/ParticleRemover.cpp
-        collisions/ParticleRemover.h
-        vesselroutes/StraightLineRoute.cpp
-        vesselroutes/StraightLineRoute.h
-        layers/Health.cpp
-        layers/Health.h
-        layers/Health.h
-        collisions/FoodPickup.cpp
-        collisions/FoodPickup.h
-        collisions/DebrisPickup.cpp
-        collisions/DebrisPickup.h
-        layers/Camera.cpp
-        layers/Camera.h
-        layers/GameOverScreen.cpp
-        layers/GameOverScreen.h
-        gameovers/GameoverCallback.h
-        layers/Timer.cpp
-        layers/Timer.h
-        commands/DismissGameoverScreen.cpp
-        commands/DismissGameoverScreen.h
-        layers/DayCounter.cpp
-        layers/DayCounter.h
-        layers/Badges.cpp
-        layers/Badges.h
-        badges/Badge.h
-        badges/Badge.cpp
-        badges/StaticBadge.cpp
-        badges/StaticBadge.h
-        statistics/Statistic.h
-        collisions/TrackedCollision.cpp
-        collisions/TrackedCollision.h
-        badges/Achievement.h
-        badges/SimpleAchievement.cpp
-        badges/SimpleAchievement.h
-        badges/FileBadgeFactory.cpp
-        badges/FileBadgeFactory.h
-        layers/StatisticsManager.cpp
-        layers/StatisticsManager.h
-        statistics/Statistic.cpp
-        layers/BadgeCounter.cpp
-        layers/BadgeCounter.h
-        layers/BadgeCounter.h
-        statistics/BadgesAcquired.cpp
-        statistics/BadgesAcquired.h
-        badges/TrackedAchievement.cpp
-        badges/TrackedAchievement.h
-        commands/CharacterMouseMoveCallback.cpp
-        commands/CharacterMouseMoveCallback.h
-        layers/CharacterNoStop.h
-        layers/CharacterNoStop.cpp
-        collisions/SoundEffect.cpp
-        collisions/SoundEffect.h
-        layers/SplashScreen.cpp
-        layers/SplashScreen.h
-        commands/DisplaySplashScreenCommand.cpp
-        commands/DisplaySplashScreenCommand.h
+# --- Executable
+add_executable(ParticleTrackTrace MACOSX_BUNDLE
+    main.cpp
+    layers/BackgroundImage.cpp
+    layers/BackgroundImage.h
+    layers/EulerGlyphs.cpp
+    layers/EulerGlyphs.h
+    layers/LagrangeGlyphs.cpp
+    layers/LagrangeGlyphs.h
+    layers/Layer.cpp
+    layers/Layer.h
+    Program.cpp
+    Program.h
+    commands/TimerCallbackCommand.h
+    commands/TimerCallbackCommand.cpp
+    commands/SpawnPointCallback.h
+    commands/SpawnPointCallback.cpp
+    commands/CameraMoveCallback.cpp
+    commands/CameraMoveCallback.h
+    CartographicTransformation.cpp
+    advection/kernel/AdvectionKernel.h
+    advection/kernel/EulerAdvectionKernel.cpp
+    advection/kernel/EulerAdvectionKernel.h
+    advection/interpolate.cpp
+    advection/interpolate.h
+    advection/readdata.cpp
+    advection/readdata.h
+    advection/kernel/RK4AdvectionKernel.cpp
+    advection/kernel/RK4AdvectionKernel.h
+    advection/UVGrid.cpp
+    advection/UVGrid.h
+    advection/Vel.cpp
+    advection/Vel.h
+    advection/kernel/SnapAdvectionConditionKernel.h
+    advection/kernel/SnapAdvectionConditionKernel.cpp
+    advection/kernel/ParcelsAdvectionConditionKernel.cpp
+    advection/kernel/ParcelsAdvectionConditionKernel.h
+    layers/Character.h
+    layers/Character.cpp
+    commands/CharacterMoveCallback.h
+    commands/CharacterMoveCallback.cpp
+    layers/ParticleCollision.h
+    layers/ParticleCollision.cpp
+    collisions/ParticleCollisionCallback.h
+    collisions/DummyCollisionHandler.h
+    collisions/DummyCollisionHandler.cpp
+    layers/Vessels.h
+    layers/Vessels.cpp
+    vesselroutes/VesselRoute.h
+    vesselroutes/QuadraticBezierRoute.cpp
+    vesselroutes/QuadraticBezierRoute.h
+    vesselroutes/VesselRouteFactory.cpp
+    vesselroutes/VesselRouteFactory.h
+    layers/FoodSpawner.cpp
+    layers/FoodSpawner.h
+    collisions/ParticleRemover.cpp
+    collisions/ParticleRemover.h
+    vesselroutes/StraightLineRoute.cpp
+    vesselroutes/StraightLineRoute.h
+    layers/Health.cpp
+    layers/Health.h
+    collisions/FoodPickup.cpp
+    collisions/FoodPickup.h
+    collisions/DebrisPickup.cpp
+    collisions/DebrisPickup.h
+    layers/Camera.cpp
+    layers/Camera.h
+    layers/GameOverScreen.cpp
+    layers/GameOverScreen.h
+    gameovers/GameoverCallback.h
+    layers/Timer.cpp
+    layers/Timer.h
+    commands/DismissGameoverScreen.cpp
+    commands/DismissGameoverScreen.h
+    layers/DayCounter.cpp
+    layers/DayCounter.h
+    layers/Badges.cpp
+    layers/Badges.h
+    badges/Badge.h
+    badges/Badge.cpp
+    badges/StaticBadge.cpp
+    badges/StaticBadge.h
+    statistics/Statistic.h
+    collisions/TrackedCollision.cpp
+    collisions/TrackedCollision.h
+    badges/Achievement.h
+    badges/SimpleAchievement.cpp
+    badges/SimpleAchievement.h
+    badges/FileBadgeFactory.cpp
+    badges/FileBadgeFactory.h
+    layers/StatisticsManager.cpp
+    layers/StatisticsManager.h
+    statistics/Statistic.cpp
+    layers/BadgeCounter.cpp
+    layers/BadgeCounter.h
+    statistics/BadgesAcquired.cpp
+    statistics/BadgesAcquired.h
+    badges/TrackedAchievement.cpp
+    badges/TrackedAchievement.h
+    commands/CharacterMouseMoveCallback.cpp
+    commands/CharacterMouseMoveCallback.h
+    layers/CharacterNoStop.h
+    layers/CharacterNoStop.cpp
+    collisions/SoundEffect.cpp
+    collisions/SoundEffect.h
+    layers/SplashScreen.cpp
+    layers/SplashScreen.h
+    commands/DisplaySplashScreenCommand.cpp
+    commands/DisplaySplashScreenCommand.h
 )
 
-execute_process(
-    COMMAND nc-config --includedir
-    OUTPUT_VARIABLE NETCDF_INCLUDE_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
+# --- Include + link NetCDF manually
+target_include_directories(ParticleTrackTrace PRIVATE ${NETCDF_CXX_INCLUDE_DIR})
+target_link_directories(ParticleTrackTrace PRIVATE ${NETCDF_CXX_LIB_DIR})
+
+target_link_libraries(ParticleTrackTrace PRIVATE
+    netcdf
+    netcdf-cxx4
+    ${VTK_LIBRARIES}
+    sfml-audio
 )
 
-execute_process(
-    COMMAND ncxx4-config --libdir
-    OUTPUT_VARIABLE NETCDFCXX_LIB_DIR
-    OUTPUT_STRIP_TRAILING_WHITESPACE
-)
-
-target_include_directories(ParticleTrackTrace PUBLIC ${netCDF_INCLUDE_DIR})
-
-find_library(NETCDF_LIB NAMES netcdf-cxx4 netcdf_c++4 PATHS ${NETCDFCXX_LIB_DIR} NO_DEFAULT_PATH)
-
-# Prevent a "command line is too long" failure in Windows.
-set(CMAKE_NINJA_FORCE_RESPONSE_FILE "ON" CACHE BOOL "Force Ninja to use response files.")
-target_link_libraries(ParticleTrackTrace ${NETCDF_LIB} ${VTK_LIBRARIES} sfml-audio)
-
-# vtk_module_autoinit is needed
+# --- Required by VTK
 vtk_module_autoinit(
   TARGETS ParticleTrackTrace
   MODULES ${VTK_LIBRARIES}
 )
 
-if(WIN32)
-add_custom_command(
-        TARGET main
-        COMMENT "Copy OpenAL DLL"
-        PRE_BUILD COMMAND ${CMAKE_COMMAND} -E copy ${SFML_SOURCE_DIR}/extlibs/bin/$<IF:$<EQUAL:${CMAKE_SIZEOF_VOID_P},8>,x64,x86>/openal32.dll $<TARGET_FILE_DIR:main>
-        VERBATIM)
+if(MSVC)
+  add_compile_options(/wd4267 /wd4244)  # Optional: suppress noisy warnings for now
 endif()

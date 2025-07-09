@@ -27,4 +27,18 @@ std::vector<Vel> bilinearinterpolation(const UVGrid &uvGrid, std::vector<std::tu
 
 bool isNearestNeighbourZero(const UVGrid &uvGrid, int time, double lat, double lon);
 
+/**
+ * Bilinearly interpolate the shore distance at a given lat/lon point
+ * @param shoreDistances vector of shore distances
+ * @param shoreLats vector of shore distance latitudes
+ * @param shoreLons vector of shore distance longitudes
+ * @param lat target latitude
+ * @param lon target longitude
+ * @return interpolated shore distance
+ */
+double interpolateShoreDistance(const std::vector<double>& shoreDistances,
+                              const std::vector<double>& shoreLats,
+                              const std::vector<double>& shoreLons,
+                              double lat, double lon);
+
 #endif //INTERPOLATE_H
